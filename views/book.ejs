@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= book.TITLE %> - Book Review</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #fdfdfd;
+      margin: 0;
+      padding: 0;
+      margin-top: 100px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 8rem 2rem 2rem;
+    }
+    .book-header {
+      display: flex;
+      gap: 7rem;
+      align-items: flex-start;
+    }
+    .book-cover {
+      width: 220px;
+      height: auto;
+      object-fit: cover;
+    }
+    .book-details {
+      flex: 1;
+    }
+    .book-title {
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    .author {
+      color: #555;
+      margin-bottom: 1rem;
+    }
+    .stars {
+      color: #f4c150;
+      font-size: 1.2rem;
+    }
+    .rating {
+      font-weight: bold;
+      margin-left: 0.5rem;
+    }
+    .description {
+      margin-top: 1rem;
+      color: #333;
+    }
+    .genres {
+      margin-top: 1rem;
+    }
+    .genres span {
+      display: inline-block;
+      background-color: #eee;
+      color: #333;
+      padding: 0.3rem 0.7rem;
+      border-radius: 20px;
+      margin: 0.2rem;
+      font-size: 0.9rem;
+    }
+    .meta-info {
+      color: #777;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+    .dropdown, .review-actions {
+      margin-top: 1.5rem;
+    }
+    select, button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .review-section {
+      display: none;
+      margin-top: 2rem;
+    }
+    .review-card {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 10px;
+    }
+    .review-meta {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+        font-style: italic;
+    }
+    .review-actions i {
+      margin-right: 0.5rem;
+      cursor: pointer;
+    }
+    .review-text {
+      margin-top: 0.5rem;
+      color: #444;
+    }
+    #reviewModal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.6);
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: 10% auto;
+      position: relative;
+    }
+    .close-btn {
+      position: absolute;
+      right: 1rem;
+      top: 1rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 1rem;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <%- include('partials/nav') %>
+
+  <div class="container">
+    <div class="book-header">
+      <img class="book-cover" src="<%= book.IMAGE %>" alt="<%= book.TITLE %> cover">
+      <div class="book-details">
+        <div class="book-title"><%= book.TITLE %></div>
+        <div class="author">by <%= book.AUTHOR %></div>
+        <div class="stars">
+          <% 
+            // Calculate star display
+            const rating = book.RATING || 0;
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            
+            // Full stars
+            for (let i = 0; i < fullStars; i++) { %>
+              ★
+            <% }
+            
+            // Half star
+            if (hasHalfStar) { %>
+              ☆
+            <% }
+            
+            // Empty stars
+            for (let i = 0; i < emptyStars; i++) { %>
+              ☆
+            <% }
+          %>
+          <span class="rating"><%= rating.toFixed(1) %></span>
+          <span style="color: #777;">
+            (<%= Math.floor(Math.random() * 1000000).toLocaleString() %> ratings • 
+            <%= Math.floor(Math.random() * 100000).toLocaleString() %> reviews)
+          </span>
+        </div>
+        <div class="description">
+          <%= book.DESCRIPTION %>
+        </div>
+        <div class="genres">
+          <span><%= book.GENRE %></span>
+          <!-- Additional genre spans if available -->
+        </div>
+        <div class="dropdown">
+            <label for="sort">Sort reviews:</label>
+            <select id="sort" onchange="sortReviews(this.value)">
+              <option value="recent" <%= currentSort === 'recent' ? 'selected' : '' %>>Most Recent</option>
+              <option value="high" <%= currentSort === 'high' ? 'selected' : '' %>>Highest Rated</option>
+              <option value="low" <%= currentSort === 'low' ? 'selected' : '' %>>Lowest Rated</option>
+            </select>
+          </div>
+        <div class="review-actions">
+          <button onclick="toggleReviews()">Show Reviews</button>
+          <% if (userId) { %>
+            <button onclick="openModal()">Write a Review</button>
+          <% } else { %>
+            <button onclick="location.href='/login'">Login to Review</button>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div id="review-section" class="review-section">
+      <% if (reviews.length === 0) { %>
+        <p>No reviews yet. Be the first to review!</p>
+      <% } else { %>
+        <% reviews.forEach(review => { %>
+          <div class="review-card">
+            <div class="review-meta">By <strong><%= review.NAME %></strong> • 
+                <% 
+                  const reviewDate = new Date(review.DATE_REVIEWED);
+                  const now = new Date();
+                  const diffDays = Math.floor((now - reviewDate) / (1000 * 60 * 60 * 24));
+                  
+                  if (diffDays === 0) {
+                    const diffHours = Math.floor((now - reviewDate) / (1000 * 60 * 60));
+                    if (diffHours === 0) {
+                      const diffMinutes = Math.floor((now - reviewDate) / (1000 * 60));
+                      if (diffMinutes === 0) {
+                %>
+                        Just now
+                <%    } else { %>
+                        <%= diffMinutes %> minute<%= diffMinutes === 1 ? '' : 's' %> ago
+                <%    }
+                    } else { %>
+                      <%= diffHours %> hour<%= diffHours === 1 ? '' : 's' %> ago
+                <%  }
+                  } else if (diffDays === 1) { %>
+                    Yesterday
+                <% } else if (diffDays < 7) { %>
+                    <%= diffDays %> day<%= diffDays === 1 ? '' : 's' %> ago
+                <% } else { %>
+                    <%= reviewDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %>
+                <% } %>
+              </div>
+            <div class="stars">
+              <% for (let i = 0; i < 5; i++) { %>
+                <%= i < review.RATING ? '★' : '☆' %>
+              <% } %>
+            </div>
+            <div class="review-text">
+                <%= review.REVIEW_TEXT || 'No review text provided' %>
+            </div>
+            <div class="review-actions">
+              <i class="fas fa-thumbs-up"></i> <%= review.LIKES %>
+              <i class="fas fa-thumbs-down"></i> <%= review.DISLIKES %>
+            </div>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (userId) { %>
+    <div id="reviewModal">
+        <div class="modal-content">
+          <span class="close-btn" onclick="closeModal()">&times;</span>
+          <h3>Write a Review</h3>
+          <form id="reviewForm" action="/book/<%= book.BOOK_ID %>/review" method="POST">
+            <div>
+              <label for="rating">Rating:</label>
+              <select name="rating" id="rating" required>
+                <option value="">Select a rating</option>
+                <option value="5">5 ★</option>
+                <option value="4">4 ★</option>
+                <option value="3">3 ★</option>
+                <option value="2">2 ★</option>
+                <option value="1">1 ★</option>
+              </select>
+            </div>
+            <textarea name="review" id="reviewText" rows="5" placeholder="Your thoughts..." required></textarea>
+            <br><br>
+            <button type="submit">Submit Review</button>
+          </form>
+        </div>
+      </div>
+  <% } %>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    function toggleReviews() {
+      const section = document.getElementById("review-section");
+      section.style.display = section.style.display === "none" || section.style.display === "" ? "block" : "none";
+    }
+
+    function openModal() {
+      document.getElementById("reviewModal").style.display = "block";
+    }
+
+    function closeModal() {
+      document.getElementById("reviewModal").style.display = "none";
+    }
+    function sortReviews(sortValue) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sortValue);
+        window.location.href = url.toString();
+    }
+    // Handle form submission
+    document.getElementById('reviewForm')?.addEventListener('submit', function(e) {
+      e.preventDefault();
+      this.submit();
+    });
+  </script>
+</body>
+</html>

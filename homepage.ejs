@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyderabad Metro Online</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #eef5fc;
+            color: #333;
+        }
+        
+        /* Header Styling */
+        header {
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+        }
+        header nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: auto;
+        }
+        header .logo {
+            font-weight: bold;
+            font-size: 30px;
+        }
+        header ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+        }
+        header ul li {
+            margin-left: 30px;
+            font-size: 18px;
+            position: relative;
+        }
+        header a {
+            text-decoration: none;
+            color: #333;
+        }
+        .login-btn {
+            padding: 10px 20px;
+            background-color: #001934;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        /* Main Section Styling */
+        .main-content {
+            text-align: center;
+            padding: 150px 20px 50px;
+            max-width: 800px;
+            margin: auto;
+        }
+        .main-content h1 {
+            font-size: 35px;
+            color: #001934;
+            margin-bottom: 15px;
+        }
+        .main-content p {
+            color: #555;
+            font-size: 20px;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+        
+        /* Image Section - Updated */
+        .image-section {
+           /* Increased width */
+            width: 1200px; /* Set max-width for large screens */
+            margin-left: 0; /* Align to the left */
+            margin-top: 0; /* Remove any margin to align it at the top */
+        }
+        .image-section img {
+            width: 100%;
+            height: auto; /* Maintain aspect ratio */
+            border-radius: 10px;
+        }
+
+        /* Card Section */
+        .card-section {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            margin-bottom: 50px;
+        }
+        .card {
+            width: 250px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h2 {
+            font-size: 20px;
+            color: #001934;
+            margin-bottom: 10px;
+        }
+        .card p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .card:nth-child(2) {
+            background-color: #001934;
+            color: #fff;
+        }
+        .card:nth-child(2) p, .card:nth-child(2) h2 {
+            color: #fff;
+        }
+
+        /* Footer */
+        footer {
+            width: 100%;
+            background-color: #001934;
+            color: #fff;
+            padding: 20px 0;
+            text-align: center;
+        }
+        footer ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        footer ul li a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        footer ul li a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">METRO-ON-LINE</div>
+            <ul>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Support</a></li>
+                <li><a href="#">Features</a></li>
+                <li><a href="#">Community</a></li>
+                <li><button class="login-btn">profile</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1>Welcome to Hyderabad Metro Online Ticketing and Tracking</h1>
+        <p>Easily book your metro tickets, plan your journeys, track your trains, and enjoy a seamless travel experience across the city. Your convenience is just a few clicks away!</p>
+        <div class="image-section">
+            <img src="rb_5228.png" alt="Metro Image">
+        </div>
+    </div>
+
+    <!-- Card Section -->
+    <div class="card-section">
+        
+        <div class="card">
+            <h2>Book your ticket</h2>
+            <p>"Reserve your metro ride in just a few clicks."</p>
+        </div>
+     
+        <div class="card">
+            <h2>Upcoming journey</h2>
+            <p>"View details of your scheduled metro trips."</p>
+        </div>
+        <div class="card">
+            <h2>Booking History</h2>
+            <p>"Track your past journeys and bookings easily."</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div>Metro-on-line</div>
+        <ul>
+            <li><a href="#">About us</a></li>
+            <li><a href="#">Mobile</a></li>
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms of use</a></li>
+            <li><a href="#">Career</a></li>
+            <li><a href="#">Customer Service</a></li>
+        </ul>
+    </footer>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Select all the cards
+            const cards = document.querySelectorAll(".card");
+    
+            // Add click event listeners for each card
+            cards[0].addEventListener("click", () => {
+                window.location.href = ".ejs"; // Redirect to 1.html
+            });
+    
+            cards[1].addEventListener("click", () => {
+                window.location.href = "2.html"; // Redirect to 2.html
+            });
+    
+            cards[2].addEventListener("click", () => {
+                window.location.href = "3.html"; // Redirect to 3.html
+            });
+        });
+    </script>
+    
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+                header {
+            width: 100%;
+            background-color: #f8f9fa;
+            padding: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        header nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-right: 20px;
+            margin-left: 20px;
+        }
+
+        header .logo {
+            font-weight: bold;
+            font-size: 30px;
+            margin-left: 30px;
+            color: rgb(14, 61, 14);
+            opacity: 70%;
+        }
+
+        header ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+         
+        }
+
+        header ul li {
+            margin-left: 75px;
+            font-size: 18px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        header a {
+            text-decoration: none;
+            color: #333;
+            transition: color 0.3s ease, font-size 0.3s ease;
+            color: rgb(14, 61, 14);
+            opacity: 70%;
+        }
+
+        header ul li:hover a {
+            color: rgb(14, 61, 14);
+            opacity: 70%;
+            font-size: 20px;
+        }
+
+        header ul li::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: rgb(14, 61, 14);
+            opacity: 70%;
+            transition: width 0.3s ease;
+        }
+
+        header ul li:hover::after {
+            width: 100%;
+        }
+
+        .login-btn {
+            padding: 10px 20px;
+            background-color: rgb(14, 61, 14);
+            opacity: 70%;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<header>  
+    <nav>
+        <div class="logo">BOOK WEB</div>
+        <ul>
+            <li><a href="#" onclick="about()">Fanart</a></li>
+            <li><a href="#" onclick="lostandfound()">Communities</a></li>
+            <li><a href="#" onclick="features()">Monthly Challenges</a></li>
+            <li><a href="#" onclick="offencesandpenalities()">Leaderboard</a></li>
+            <!-- <li><a href="#" onclick="contact()">Contact Us</a></li> -->
+            <li><button class="login-btn" onclick="profile()">Profile</button></li>
+        </ul>
+    </nav>      
+</header>
+<script>
+    function about(){
+        window.location.href='/about';
+    }
+    function contact(){
+        window.location.href='/contact';
+    }
+    function lostandfound(){
+        window.location.href='/lostandfound';
+    }
+    function features(){
+        window.location.href='/features';
+    }
+    function profile(){
+        window.location.href='/profile';
+    }
+    function offencesandpenalities(){
+        window.location.href='/offencesandpenalities';
+    }
+</script>
+</body>
+</html>

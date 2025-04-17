@@ -1,0 +1,30 @@
+{
+  "name": "dbmsproject",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js",
+    "postinstall": "xattr -d com.apple.quarantine node_modules/oracledb/build/Release/oracledb-*.node || true"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "express",
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "oracledb": "^6.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManasviBurramukku/BookWeb.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ManasviBurramukku/BookWeb/issues"
+  },
+  "homepage": "https://github.com/ManasviBurramukku/BookWeb#readme"
+}
