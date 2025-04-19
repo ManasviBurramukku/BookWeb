@@ -87,7 +87,7 @@ CREATE TABLE reviews (
 INSERT INTO users VALUES (1, 'Alice', 'alice@example.com', 'pass123', 120, 2);
 INSERT INTO users VALUES (2, 'Bob', 'bob@example.com', 'pass456', 85, 4);
 INSERT INTO users VALUES (3, 'Charlie', 'charlie@example.com', 'pass789', 90, 5);
-INSERT INTO users VALUES (4, 'Diana', 'diana@example.com', 'pass321', 70, 1);
+INSERT INTO users VALUES (4, 'princess ananya', 'diana@example.com', 'pass321', 700000000, 3);
 INSERT INTO users VALUES (5, 'Evan', 'evan@example.com', 'pass654', 65, 3);
 INSERT INTO users VALUES (6, 'Manasvi', 'iit2023006@iiita.ac.in', 'mansu', 100000, 3);
 -- BOOKS INSERT with descriptions
