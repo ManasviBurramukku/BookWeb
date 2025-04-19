@@ -521,6 +521,47 @@ app.get('/fanart', (req, res) => {
   res.render('fanart', { fanarts });
 });
 
+
+app.get('/leaderboard', async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    const result = await connection.execute(
+      `SELECT u.name, NVL(SUM(r.likes), 0) AS total_likes
+       FROM users u
+       LEFT JOIN reviews r ON u.user_id = r.user_id
+       GROUP BY u.name
+       ORDER BY total_likes DESC
+       FETCH FIRST 10 ROWS ONLY`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    const leaderboard = result.rows.map((row, index) => ({
+      rank: index + 1,
+      name: row.NAME,
+      total_likes: row.TOTAL_LIKES || 0
+    }));
+
+    res.render('leaderboard', { 
+      leaderboard,
+      userId: req.session.userId  // Pass userId to the view if needed
+    });
+  } catch (err) {
+    console.error('Leaderboard error:', err);
+    res.status(500).render('error', { message: 'Error loading leaderboard' });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
 // Server
 const PORT = 3000;
 app.listen(PORT, () => {

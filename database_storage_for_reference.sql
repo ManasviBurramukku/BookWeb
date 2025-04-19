@@ -29,6 +29,26 @@ EXCEPTION
 END;
 /
 
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE merchandise CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE redemptions CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
+END;
+/
+
 -- USERS TABLE
 CREATE TABLE users (
     user_id INT PRIMARY KEY,
@@ -69,7 +89,7 @@ INSERT INTO users VALUES (2, 'Bob', 'bob@example.com', 'pass456', 85, 4);
 INSERT INTO users VALUES (3, 'Charlie', 'charlie@example.com', 'pass789', 90, 5);
 INSERT INTO users VALUES (4, 'Diana', 'diana@example.com', 'pass321', 70, 1);
 INSERT INTO users VALUES (5, 'Evan', 'evan@example.com', 'pass654', 65, 3);
-
+INSERT INTO users VALUES (6, 'Manasvi', 'iit2023006@iiita.ac.in', 'mansu', 100000, 3);
 -- BOOKS INSERT with descriptions
 INSERT INTO books VALUES (1, '1984', 'George Orwell', 'Dystopian', 'https://covers.openlibrary.org/b/id/7222246-L.jpg', 
 'In a totalitarian society where the Party controls all aspects of life, Winston Smith begins a forbidden love affair and dares to think rebellious thoughts.', 4.5);
@@ -169,5 +189,32 @@ ALTER TABLE reviews ADD (date_reviewed TIMESTAMP DEFAULT SYSTIMESTAMP);
 -- Update existing records with random dates (optional)
 UPDATE reviews SET date_reviewed = SYSTIMESTAMP - NUMTODSINTERVAL(DBMS_RANDOM.VALUE(0, 30), 'DAY');
 
+
+-- MERCHANDISE TABLE
+CREATE TABLE merchandise (
+    merch_id INT PRIMARY KEY,
+    name VARCHAR2(100),
+    image_url VARCHAR2(255),
+    points_required INT
+);
+
+-- REDEMPTIONS TABLE
+CREATE TABLE redemptions (
+    redemption_id INT PRIMARY KEY,
+    user_id INT,
+    merch_id INT,
+    recipient_name VARCHAR2(100),  -- Changed from 'name' to 'recipient_name'
+    shipping_address VARCHAR2(500),
+    redemption_date DATE DEFAULT SYSDATE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (merch_id) REFERENCES merchandise(merch_id)
+);
+
+INSERT INTO merchandise VALUES (1, 'Coffee mug', 'https://i.pinimg.com/736x/f8/67/65/f8676514523b961e07a40a8daa4dd104.jpg', 500);
+INSERT INTO merchandise VALUES (2, 'Tote bag', 'https://i.pinimg.com/474x/0e/d0/1c/0ed01cd8c5e10da89eeacca185d5c620.jpg', 750);
+INSERT INTO merchandise VALUES (3, 'T-shirt', 'https://i.pinimg.com/736x/4d/7d/9b/4d7d9b4261b659fe16df4495049a0214.jpg', 1000);
+INSERT INTO merchandise VALUES (4, 'Bookmarks', 'https://i.pinimg.com/736x/bb/1a/f5/bb1af5199276f877d677a0bac70c604c.jpg', 750);
+INSERT INTO merchandise VALUES (5, 'SweatShirt', 'https://i.pinimg.com/736x/c0/fb/ef/c0fbef1ea06849af13b5969382831235.jpg', 1000);
+INSERT INTO merchandise VALUES (6, 'Coffee mug', 'https://i.pinimg.com/736x/ed/10/20/ed10208d6b2f38451ea02603b36ca71f.jpg', 500);
 
 COMMIT;

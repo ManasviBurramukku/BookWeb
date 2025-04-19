@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard | BookWeb</title>
+  <style>
+    :root {
+      --primary-color: rgb(14, 61, 14);
+      --bg-color: #f5f5f5;
+      --text-color: #333;
+      --card-bg: white;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .title {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--primary-color);
+      margin-top: 7rem;
+      font-weight: 600;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      margin: 2rem auto;
+      border-collapse: collapse;
+      background-color: var(--card-bg);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .leaderboard-table th,
+    .leaderboard-table td {
+      padding: 1rem;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .leaderboard-table th {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    .leaderboard-table tbody tr:hover {
+      background-color: #f0f0f0;
+    }
+
+    .leaderboard-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    .rank-1 {
+      font-weight: bold;
+      color: gold;
+    }
+    .rank-2 {
+      font-weight: bold;
+      color: silver;
+    }
+    .rank-3 {
+      font-weight: bold;
+      color: #cd7f32; /* bronze */
+    }
+
+    .medal {
+      font-size: 1.2em;
+      margin-right: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      .title {
+        font-size: 2rem;
+        margin-top: 5rem;
+      }
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 0.75rem 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/nav') %>
+
+  <div class="container">
+    <h1 class="title">🏆 Top Reviewers Leaderboard</h1>
+    
+    <% if (leaderboard && leaderboard.length > 0) { %>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Reviewer</th>
+            <th>Total Likes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% leaderboard.forEach((user, index) => { %>
+            <tr>
+              <td class="rank-<%= index + 1 %>">
+                <% if (index === 0) { %>
+                  <span class="medal">🥇</span>
+                <% } else if (index === 1) { %>
+                  <span class="medal">🥈</span>
+                <% } else if (index === 2) { %>
+                  <span class="medal">🥉</span>
+                <% } %>
+                <%= index + 1 %>
+              </td>
+              <td><%= user.name %></td>
+              <td><%= user.total_likes.toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p>No leaderboard data available yet.</p>
+    <% } %>
+  </div>
+
+  <%- include('partials/footer') %>
+</body>
+</html>
