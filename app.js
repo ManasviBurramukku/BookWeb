@@ -494,6 +494,33 @@ app.post('/redeem/:id', async (req, res) => {
   }
 });
 
+//fanart
+// Fanart Route
+app.get('/fanart', (req, res) => {
+  const fanarts = [
+    {
+      img: "https://via.placeholder.com/300x200?text=Fanart+1",
+      title: "Beautiful Scene",
+      description: "A fanart from the story.",
+      link: "#"
+    },
+    {
+      img: "https://via.placeholder.com/300x200?text=Fanart+2",
+      title: "Epic Battle",
+      description: "An action-packed fan drawing.",
+      link: "#"
+    },
+    {
+      img: "https://via.placeholder.com/300x200?text=Fanart+3",
+      title: "Character Art",
+      description: "A portrait of a popular character.",
+      link: "#"
+    }
+  ];
+
+  res.render('fanart', { fanarts });
+});
+
 // Server
 const PORT = 3000;
 app.listen(PORT, () => {
