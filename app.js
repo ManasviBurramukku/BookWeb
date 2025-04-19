@@ -16,12 +16,14 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
+// Add these at the top with other middleware
+app.use(bodyParser.json());
 
 // DB Config
 const dbConfig = {
-  user: 'manasvi',
-  password: 'abcd',
-  connectString: 'localhost/free'
+  user: 'DBMS',
+  password: '12345',
+  connectString: 'localhost/xe'
 };
 
 // Routes
@@ -362,6 +364,136 @@ app.post('/book/:id/review', async (req, res) => {
     if (connection) await connection.close();
   }
 });
+
+//merchandise
+
+app.get('/merchandise', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get user's total points
+    const userPointsResult = await connection.execute(
+      `SELECT total_points FROM users WHERE user_id = :userId`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const totalPoints = userPointsResult.rows[0]?.TOTAL_POINTS || 0;
+
+    // Get all merchandise items
+    const merchandiseResult = await connection.execute(
+      `SELECT merch_id, name, points_required, image_url FROM merchandise`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const merchandise = merchandiseResult.rows;
+    // console.log(merchandise)
+    res.render('merchandise', { userPoints: totalPoints, 
+      merchandise,
+      userId: req.session.userId,
+      error: req.query.error,
+      success: req.query.success});
+  } catch (err) {
+    console.error('Error fetching merchandise or user points:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+//reedem
+// Update the redeem route
+app.post('/redeem/:id', async (req, res) => {
+  console.log('Request body:', req.body);
+  const userId = req.session.userId;
+  const merchId = req.params.id;
+  const { fullName, address } = req.body;
+
+  if (!userId) return res.redirect('/login');
+
+  // Basic validation
+  if (!fullName || !address) {
+    return res.redirect(`/merchandise?error=MissingFields`);
+  }
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Fetch item cost and name
+    const merchResult = await connection.execute(
+      `SELECT name, points_required FROM merchandise WHERE merch_id = :merchId`,
+      { merchId: merchId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (merchResult.rows.length === 0) {
+      return res.redirect('/merchandise?error=ItemNotFound');
+    }
+
+    const merchName = merchResult.rows[0].NAME;
+    const requiredPoints = merchResult.rows[0].POINTS_REQUIRED;
+
+    // Fetch user points and email
+    const userResult = await connection.execute(
+      `SELECT total_points, email FROM users WHERE user_id = :userId`,
+      { userId: userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    const currentPoints = userResult.rows[0]?.TOTAL_POINTS ?? 0;
+    const userEmail = userResult.rows[0]?.EMAIL;
+
+    if (currentPoints < requiredPoints) {
+      return res.redirect('/merchandise?error=NotEnoughPoints');
+    }
+
+    // Generate a new redemption_id - FIXED THIS PART
+    const idResult = await connection.execute(
+      `SELECT NVL(MAX(redemption_id), 0) + 1 AS next_id FROM redemptions`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const newRedemptionId = idResult.rows[0].NEXT_ID;
+
+    // Deduct points
+    await connection.execute(
+      `UPDATE users SET total_points = total_points - :pointsRequired WHERE user_id = :userId`,
+      { 
+        pointsRequired: requiredPoints, 
+        userId: userId 
+      }
+    );
+
+    // Insert into redemptions with address info
+    await connection.execute(
+      `INSERT INTO redemptions (redemption_id, user_id, merch_id, recipient_name, shipping_address) 
+       VALUES (:redemptionId, :userId, :merchId, :recipientName, :shippingAddress)`,
+      { 
+        redemptionId: newRedemptionId, 
+        userId: userId, 
+        merchId: merchId,
+        recipientName: fullName,
+        shippingAddress: address
+      }
+    );
+
+    await connection.commit();
+
+    console.log(`Email would be sent to ${userEmail} about ${merchName} redemption`);
+    res.redirect('/merchandise?success=1');
+  } catch (err) {
+    console.error('Redemption error:', err);
+    if (connection) await connection.rollback();
+    res.redirect('/merchandise?error=RedemptionFailed');
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 // Server
 const PORT = 3000;
 app.listen(PORT, () => {

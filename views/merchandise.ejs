@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Redeem Gifts</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f9fafb;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0.05rem auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 2rem;
+      padding: 3rem 0 5rem;
+    }
+
+    .card {
+      background-color: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .card img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 1.2rem;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 0.3rem;
+    }
+
+    .points {
+      font-size: 0.95rem;
+      color: #6b7280;
+    }
+
+    .redeem-btn {
+      background-color: rgb(14, 61, 14);
+      opacity: 70%;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .redeem-btn:hover {
+      background-color: rgb(14, 61, 14);
+      opacity: 90%;
+    }
+
+    .redeem-btn.disabled {
+      opacity: 50%;
+      cursor: not-allowed;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2rem 2rem 1rem 5rem;
+      margin-top: 95px;
+      margin-bottom: -15px;
+    }
+
+    .section-heading {
+      font-size: 30px;
+      font-weight: 500;
+      color: rgb(14, 61, 14);
+      opacity: 65%;
+      margin: 0;
+    }
+
+    .points-box {
+      background-color: rgb(14, 61, 14);
+      opacity: 65%;
+      padding: 0.8rem 2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      color: #ffffff;
+      box-shadow: 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .card-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+    }
+
+    .text-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 25px;
+      border: 1px solid #888;
+      width: 50%;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .close-btn {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close-btn:hover {
+      color: black;
+    }
+
+    .checkbox-container {
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+    }
+
+    #redeemForm div {
+      margin-bottom: 15px;
+    }
+
+    #redeemForm label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #4b5563;
+    }
+
+    #redeemForm input[type="text"],
+    #redeemForm textarea {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-family: inherit;
+    }
+
+    #redeemForm textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    #redeemForm button[type="submit"] {
+      background-color: rgb(14, 61, 14);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.2s;
+    }
+
+    #redeemForm button[type="submit"]:hover {
+      opacity: 0.9;
+    }
+
+    #redeemForm input[type="checkbox"] {
+      margin-right: 10px;
+    }
+
+    /* Success/Error Messages */
+    .message {
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    .success {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .error {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/nav') %>
+
+  <div class="header-row">
+    <h2 class="section-heading">Redeem Your Points</h2>
+    <div class="points-box">My Points: <%= userPoints %></div>
+  </div>
+
+  <% if (success) { %>
+    <div class="message success">
+      Redemption successful! You'll receive a confirmation email shortly.
+    </div>
+  <% } %>
+
+  <% if (error) { %>
+    <div class="message error">
+      <% if (error === 'NotEnoughPoints') { %>
+        You don't have enough points to redeem this item.
+      <% } else if (error === 'ItemNotFound') { %>
+        The item you're trying to redeem doesn't exist.
+      <% } else { %>
+        An error occurred during redemption. Please try again.
+      <% } %>
+    </div>
+  <% } %>
+
+  <div class="container">
+    <% merchandise.forEach(item => { %>
+      <div class="card">
+        <img src="<%= item.IMAGE_URL %>" alt="<%= item.NAME %>"/>
+        <div class="card-content">
+          <div class="card-info-row">
+            <div class="text-group">
+              <div class="card-title"><%= item.NAME %></div>
+              <div class="points"><%= item.POINTS_REQUIRED %> Points</div>
+            </div>
+            <% if (userPoints >= item.POINTS_REQUIRED) { %>
+              <button 
+                class="redeem-btn"
+                onclick="openRedeemModal(<%= item.MERCH_ID %>, '<%= item.NAME %>', <%= item.POINTS_REQUIRED %>)"
+              >
+                Redeem
+              </button>
+            <% } else { %>
+              <button 
+                class="redeem-btn disabled" 
+                title="You need <%= item.POINTS_REQUIRED - userPoints %> more points to redeem this"
+                disabled
+              >
+                Redeem
+              </button>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+
+  <!-- Redeem Modal -->
+  <div id="redeemModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeRedeemModal()">&times;</span>
+      <h3>Redeem <span id="merchName"></span></h3>
+      <p>This will deduct <strong><span id="pointsCost"></span> points</strong> from your account.</p>
+      
+      <form id="redeemForm" method="POST">
+        <input type="hidden" id="merchId" name="merchId">
+        
+        <div>
+          <label for="fullName">Full Name:</label>
+          <input type="text" id="fullName" name="fullName" required>
+        </div>
+        
+        <div>
+          <label for="address">Shipping Address:</label>
+          <textarea id="address" name="address" rows="4" required></textarea>
+        </div>
+        
+        <div class="checkbox-container">
+          <input type="checkbox" id="confirmRedeem" name="confirmRedeem" required>
+          <label for="confirmRedeem">I confirm I want to redeem this item</label>
+        </div>
+        
+        <button type="submit">Complete Redemption</button>
+      </form>
+    </div>
+  </div>
+  
+  <%- include('partials/footer') %>
+
+  <script>
+    function openRedeemModal(merchId, merchName, points) {
+      document.getElementById('merchId').value = merchId;
+      document.getElementById('merchName').textContent = merchName;
+      document.getElementById('pointsCost').textContent = points;
+      document.getElementById('redeemModal').style.display = 'block';
+    }
+
+    function closeRedeemModal() {
+      document.getElementById('redeemModal').style.display = 'none';
+    }
+
+    // Handle form submission
+// Replace the existing form submission handler with this:
+  document.getElementById('redeemForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = this;
+    const formData = new URLSearchParams(new FormData(form));
+
+    fetch(`/redeem/${formData.get('merchId')}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData
+    })
+    .then(response => {
+      if (response.redirected) {
+        window.location.href = response.url;
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  });
+
+    // Close modal if clicked outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('redeemModal');
+      if (event.target === modal) {
+        closeRedeemModal();
+      }
+    }
+  </script>
+</body>
+</html>
