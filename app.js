@@ -25,6 +25,13 @@ const dbConfig = {
   password: '12345',
   connectString: 'localhost/xe'
 };
+// DB Config for ananya
+// const dbConfig = {
+//   user: 'sys',
+//   password: 'abcd',
+//   connectString: 'localhost/free',
+//   privilege: require('oracledb').SYSDBA // or SYSOPER
+// };
 
 // Routes
 app.get('/', (req, res) => res.render('landing'));
