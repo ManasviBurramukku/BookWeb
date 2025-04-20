@@ -49,6 +49,16 @@ EXCEPTION
 END;
 /
 
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE saved_books CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
+END;
+/
+
 -- USERS TABLE
 CREATE TABLE users (
     user_id INT PRIMARY KEY,
@@ -216,5 +226,16 @@ INSERT INTO merchandise VALUES (3, 'T-shirt', 'https://i.pinimg.com/736x/4d/7d/9
 INSERT INTO merchandise VALUES (4, 'Bookmarks', 'https://i.pinimg.com/736x/bb/1a/f5/bb1af5199276f877d677a0bac70c604c.jpg', 750);
 INSERT INTO merchandise VALUES (5, 'SweatShirt', 'https://i.pinimg.com/736x/c0/fb/ef/c0fbef1ea06849af13b5969382831235.jpg', 1000);
 INSERT INTO merchandise VALUES (6, 'Coffee mug', 'https://i.pinimg.com/736x/ed/10/20/ed10208d6b2f38451ea02603b36ca71f.jpg', 500);
+
+-- Add this to your SQL script
+CREATE TABLE saved_books (
+    save_id INT PRIMARY KEY,
+    user_id INT,
+    book_id INT,
+    saved_date TIMESTAMP DEFAULT SYSTIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id),
+    CONSTRAINT unique_save UNIQUE (user_id, book_id)
+);
 
 COMMIT;

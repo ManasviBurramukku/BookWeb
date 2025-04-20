@@ -238,73 +238,73 @@ app.post('/search', async (req, res) => {
 });
 
 // Book details route
-app.get('/book/:id', async (req, res) => {
-  const bookId = req.params.id;
-  const userId = req.session.userId;
-  const sort = req.query.sort || 'recent'; // Get sort parameter or default to 'recent'
-  let connection;
+// app.get('/book/:id', async (req, res) => {
+//   const bookId = req.params.id;
+//   const userId = req.session.userId;
+//   const sort = req.query.sort || 'recent'; // Get sort parameter or default to 'recent'
+//   let connection;
 
-  try {
-    connection = await oracledb.getConnection(dbConfig);
+//   try {
+//     connection = await oracledb.getConnection(dbConfig);
 
-    // 1. Get book details
-    const bookResult = await connection.execute(
-      `SELECT book_id, title, author, genre, image, description, 
-              NVL(rating, 0) as rating 
-       FROM books 
-       WHERE book_id = :bookId`,
-      { bookId },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
+//     // 1. Get book details
+//     const bookResult = await connection.execute(
+//       `SELECT book_id, title, author, genre, image, description, 
+//               NVL(rating, 0) as rating 
+//        FROM books 
+//        WHERE book_id = :bookId`,
+//       { bookId },
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
 
-    if (bookResult.rows.length === 0) {
-      return res.status(404).send("Book not found");
-    }
+//     if (bookResult.rows.length === 0) {
+//       return res.status(404).send("Book not found");
+//     }
 
-    const book = bookResult.rows[0];
+//     const book = bookResult.rows[0];
 
-    // 2. Determine sort order
-    let orderBy;
-    switch(sort) {
-      case 'high':
-        orderBy = 'r.rating DESC, r.date_reviewed DESC';
-        break;
-      case 'low':
-        orderBy = 'r.rating ASC, r.date_reviewed DESC';
-        break;
-      case 'recent':
-      default:
-        orderBy = 'r.date_reviewed DESC';
-    }
+//     // 2. Determine sort order
+//     let orderBy;
+//     switch(sort) {
+//       case 'high':
+//         orderBy = 'r.rating DESC, r.date_reviewed DESC';
+//         break;
+//       case 'low':
+//         orderBy = 'r.rating ASC, r.date_reviewed DESC';
+//         break;
+//       case 'recent':
+//       default:
+//         orderBy = 'r.date_reviewed DESC';
+//     }
 
-    // 3. Get reviews with sorting and date_reviewed
-    const reviewsResult = await connection.execute(
-      `SELECT r.review_id, r.book_id, r.user_id, r.rating, 
-              r.likes, r.dislikes, u.name,
-              DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
-              r.date_reviewed
-       FROM reviews r
-       JOIN users u ON r.user_id = u.user_id
-       WHERE r.book_id = :bookId
-       ORDER BY ${orderBy}`,
-      { bookId },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
+//     // 3. Get reviews with sorting and date_reviewed
+//     const reviewsResult = await connection.execute(
+//       `SELECT r.review_id, r.book_id, r.user_id, r.rating, 
+//               r.likes, r.dislikes, u.name,
+//               DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
+//               r.date_reviewed
+//        FROM reviews r
+//        JOIN users u ON r.user_id = u.user_id
+//        WHERE r.book_id = :bookId
+//        ORDER BY ${orderBy}`,
+//       { bookId },
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
 
-    res.render('book', {
-      book,
-      reviews: reviewsResult.rows,
-      userId,
-      currentSort: sort // Pass current sort option to view
-    });
+//     res.render('book', {
+//       book,
+//       reviews: reviewsResult.rows,
+//       userId,
+//       currentSort: sort // Pass current sort option to view
+//     });
 
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.close();
-  }
-});
+//   } catch (err) {
+//     console.error('Database error:', err);
+//     res.status(500).send("Internal Server Error");
+//   } finally {
+//     if (connection) await connection.close();
+//   }
+// });
 
 app.post('/book/:id/review', async (req, res) => {
   const bookId = req.params.id;
@@ -365,6 +365,138 @@ app.post('/book/:id/review', async (req, res) => {
   }
 });
 
+// Add this new route to handle saving/unsaving books
+app.post('/book/:id/save', async (req, res) => {
+  const bookId = req.params.id;
+  const userId = req.session.userId;
+  
+  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Check if already saved
+    const checkResult = await connection.execute(
+      `SELECT 1 FROM saved_books WHERE user_id = :userId AND book_id = :bookId`,
+      { userId, bookId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (checkResult.rows.length > 0) {
+      // Already saved - remove it
+      await connection.execute(
+        `DELETE FROM saved_books WHERE user_id = :userId AND book_id = :bookId`,
+        { userId, bookId }
+      );
+      await connection.commit();
+      return res.json({ saved: false });
+    } else {
+      // Not saved - add it
+      const nextIdResult = await connection.execute(
+        `SELECT NVL(MAX(save_id), 0) + 1 AS next_id FROM saved_books`,
+        [],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      const nextId = nextIdResult.rows[0].NEXT_ID;
+
+      await connection.execute(
+        `INSERT INTO saved_books (save_id, user_id, book_id) 
+         VALUES (:nextId, :userId, :bookId)`,
+        { nextId, userId, bookId }
+      );
+      await connection.commit();
+      return res.json({ saved: true });
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    if (connection) await connection.rollback();
+    res.status(500).json({ error: 'Database error' });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Update your existing book route to include the saved status check
+app.get('/book/:id', async (req, res) => {
+  const bookId = req.params.id;
+  const userId = req.session.userId;
+  const sort = req.query.sort || 'recent';
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // 1. Get book details
+    const bookResult = await connection.execute(
+      `SELECT book_id, title, author, genre, image, description, 
+              NVL(rating, 0) as rating 
+       FROM books 
+       WHERE book_id = :bookId`,
+      { bookId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (bookResult.rows.length === 0) {
+      return res.status(404).send("Book not found");
+    }
+
+    const book = bookResult.rows[0];
+
+    // 2. Check if book is saved by this user
+    let isSaved = false;
+    if (userId) {
+      const savedResult = await connection.execute(
+        `SELECT 1 FROM saved_books WHERE user_id = :userId AND book_id = :bookId`,
+        { userId, bookId },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      isSaved = savedResult.rows.length > 0;
+    }
+
+    // 3. Determine sort order for reviews
+    let orderBy;
+    switch(sort) {
+      case 'high':
+        orderBy = 'r.rating DESC, r.date_reviewed DESC';
+        break;
+      case 'low':
+        orderBy = 'r.rating ASC, r.date_reviewed DESC';
+        break;
+      case 'recent':
+      default:
+        orderBy = 'r.date_reviewed DESC';
+    }
+
+    // 4. Get reviews with sorting and date_reviewed
+    const reviewsResult = await connection.execute(
+      `SELECT r.review_id, r.book_id, r.user_id, r.rating, 
+              r.likes, r.dislikes, u.name,
+              DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
+              r.date_reviewed
+       FROM reviews r
+       JOIN users u ON r.user_id = u.user_id
+       WHERE r.book_id = :bookId
+       ORDER BY ${orderBy}`,
+      { bookId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('book', {
+      book,
+      reviews: reviewsResult.rows,
+      userId,
+      currentSort: sort,
+      isSaved: isSaved // Pass the saved status to the view
+    });
+
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 //merchandise
 
 app.get('/merchandise', async (req, res) => {
@@ -562,6 +694,88 @@ app.get('/leaderboard', async (req, res) => {
   }
 });
 
+// Profile route
+app.get('/profile', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // 1. Get user info
+    const userResult = await connection.execute(
+      `SELECT name, email, total_points FROM users WHERE user_id = :userId`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).send("User not found");
+    }
+    const user = userResult.rows[0];
+
+    // 2. Get saved books
+    const savedBooksResult = await connection.execute(
+      `SELECT b.book_id, b.title, b.author, b.image 
+       FROM saved_books sb
+       JOIN books b ON sb.book_id = b.book_id
+       WHERE sb.user_id = :userId
+       ORDER BY sb.saved_date DESC`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const savedBooks = savedBooksResult.rows;
+
+    // 3. Get reading activity (books reviewed)
+    const activityResult = await connection.execute(
+      `SELECT COUNT(DISTINCT book_id) as books_read 
+       FROM reviews 
+       WHERE user_id = :userId`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const booksRead = activityResult.rows[0]?.BOOKS_READ || 0;
+
+    // 4. Get recent reviews (last 10)
+    const reviewsResult = await connection.execute(
+      `SELECT r.review_id, b.book_id, b.title, 
+              DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
+              r.rating, r.date_reviewed
+       FROM reviews r
+       JOIN books b ON r.book_id = b.book_id
+       WHERE r.user_id = :userId
+       ORDER BY r.date_reviewed DESC
+       FETCH FIRST 10 ROWS ONLY`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const recentReviews = reviewsResult.rows;
+
+    res.render('profile', {
+      user,
+      savedBooks,
+      booksRead,
+      recentReviews
+    });
+
+  } catch (err) {
+    console.error('Profile error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout error:', err);
+    }
+    res.redirect('/login');
+  });
+});
 // Server
 const PORT = 3000;
 app.listen(PORT, () => {

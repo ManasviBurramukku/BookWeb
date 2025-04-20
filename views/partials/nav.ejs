@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-                header {
+        header {
             width: 100%;
             background-color: #f8f9fa;
             padding: 10px;
@@ -36,7 +37,6 @@
             list-style: none;
             display: flex;
             align-items: center;
-         
         }
 
         header ul li {
@@ -85,6 +85,50 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            background-color: rgb(10, 45, 10);
+        }
+
+        /* Profile Dropdown Styles */
+        .profile-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .dropdown-content a {
+            color: rgb(14, 61, 14);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            text-align: left;
+            transition: background-color 0.3s ease;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .profile-dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .profile-dropdown:hover .login-btn {
+            background-color: rgb(10, 45, 10);
         }
     </style>
 </head>
@@ -94,14 +138,39 @@
     <nav>
         <div class="logo">BOOK WEB</div>
         <ul>
-            <li><a href="#" onclick="about()">Fanart</a></li>
-            <li><a href="#" onclick="lostandfound()">Communities</a></li>
-            <li><a href="../monthly_challanges">Monthly Challenges</a></li>
-            <li><a href="../leaderboard">Leaderboard</a></li>
-            <li><a href="../merchandise">Store</a></li>
-            <li><button class="login-btn" onclick="profile()">Profile</button></li>
+            <li><a href="/fanart">Fanart</a></li>
+            <li><a href="#">Communities</a></li>
+            <li><a href="#">Monthly Challenges</a></li>
+            <li><a href="/leaderboard">Leaderboard</a></li>
+            <li><a href="/merchandise">Store</a></li>
+            <li>
+                <div class="profile-dropdown">
+                    <button class="login-btn">
+                        <i class="fas fa-user"></i> Profile
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
+                        <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </li>
         </ul>
     </nav>      
 </header>
+
+<script>
+    // You can keep your existing onclick functions if needed
+    function about() {
+        // Your about function
+    }
+
+    function lostandfound() {
+        // Your lostandfound function
+    }
+
+    function profile() {
+        // This is now handled by the dropdown
+    }
+</script>
 </body>
 </html>

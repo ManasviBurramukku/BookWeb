@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= user.NAME %>'s Profile | BookHub</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #3a5a78;
+      --secondary-color: #6c757d;
+      --accent-color: #5cb85c;
+      --light-bg: #f8f9fa;
+      --card-shadow: 0 10px 20px rgba(0,0,0,0.08);
+      --hover-shadow: 0 15px 30px rgba(0,0,0,0.12);
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--light-bg);
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    /* Header Section */
+    .profile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 100px;
+      margin-bottom: 40px;
+      position: relative;
+    }
+    
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+    }
+    
+    .profile-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 5px solid white;
+      box-shadow: var(--card-shadow);
+      background-color: #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: var(--primary-color);
+    }
+    
+    .profile-text h1 {
+      font-size: 36px;
+      font-weight: 600;
+      margin: 0 0 5px;
+      color: var(--primary-color);
+    }
+    
+    .profile-text p {
+      font-size: 16px;
+      color: var(--secondary-color);
+      margin: 0;
+    }
+    
+    .points-badge {
+      background: linear-gradient(135deg, #4e73df, #224abe);
+      color: white;
+      padding: 12px 25px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 18px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .points-badge i {
+      font-size: 20px;
+    }
+    
+    /* Stats Section */
+    .stats-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.3s, box-shadow 0.3s;
+      text-align: center;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--hover-shadow);
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin: 10px 0;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: var(--secondary-color);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Saved Books Section */
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin: 40px 0 20px;
+      position: relative;
+      display: inline-block;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background-color: var(--accent-color);
+      border-radius: 3px;
+    }
+    
+    .saved-books {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 25px;
+      margin-bottom: 40px;
+    }
+    
+    .book-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s;
+      position: relative;
+    }
+    
+    .book-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--hover-shadow);
+    }
+    
+    .book-card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    
+    .book-card:hover img {
+      transform: scale(1.05);
+    }
+    
+    .book-info {
+      padding: 15px;
+    }
+    
+    .book-title {
+      font-size: 15px;
+      font-weight: 500;
+      margin: 0 0 5px;
+      color: var(--primary-color);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .book-author {
+      font-size: 13px;
+      color: var(--secondary-color);
+      margin: 0;
+    }
+    
+    /* Reviews Section */
+    .reviews-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin-bottom: 40px;
+    }
+    
+    .reviews-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .reviews-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .reviews-table th {
+      padding: 15px 20px;
+      text-align: left;
+      background-color: #f8f9fa;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+    
+    .reviews-table td {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+    }
+    
+    .reviews-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .reviews-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .rating {
+      color: #ffc107;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .review-date {
+      color: var(--secondary-color);
+      font-size: 13px;
+    }
+    
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--secondary-color);
+    }
+    
+    .empty-state i {
+      font-size: 50px;
+      color: #dee2e6;
+      margin-bottom: 20px;
+    }
+    
+    .empty-state p {
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+      .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+      
+      .profile-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .stats-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .saved-books {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      
+      .reviews-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/nav') %>
+
+  <div class="container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="profile-info">
+        <div class="profile-avatar">
+          <%= user.NAME.charAt(0).toUpperCase() %>
+        </div>
+        <div class="profile-text">
+          <h1><%= user.NAME %></h1>
+          <p>Member since <%= new Date(user.JOIN_DATE).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) %></p>
+        </div>
+      </div>
+      <div class="points-badge">
+        <i class="fas fa-coins"></i>
+        <span><%= user.TOTAL_POINTS %> Points</span>
+      </div>
+    </div>
+    
+    <!-- Stats Section -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-label">Books Read</div>
+        <div class="stat-number"><%= booksRead %></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Books Saved</div>
+        <div class="stat-number"><%= savedBooks.length %></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Reviews</div>
+        <div class="stat-number"><%= recentReviews.length %></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Reading Streak</div>
+        <div class="stat-number">7 days</div>
+      </div>
+    </div>
+    
+    <!-- Saved Books Section -->
+    <h2 class="section-title">Saved Books</h2>
+    <% if (savedBooks.length > 0) { %>
+      <div class="saved-books">
+        <% savedBooks.forEach(book => { %>
+          <div class="book-card">
+            <a href="/book/<%= book.BOOK_ID %>">
+              <img src="<%= book.IMAGE || '/images/book-placeholder.jpg' %>" alt="<%= book.TITLE %>">
+              <div class="book-info">
+                <h3 class="book-title"><%= book.TITLE %></h3>
+                <p class="book-author"><%= book.AUTHOR || 'Unknown Author' %></p>
+              </div>
+            </a>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="empty-state">
+        <i class="fas fa-book-open"></i>
+        <p>Your reading list is empty</p>
+        <a href="/discover" class="btn btn-primary">Discover Books</a>
+      </div>
+    <% } %>
+    
+    <!-- Reviews Section -->
+    <h2 class="section-title">Recent Reviews</h2>
+    <% if (recentReviews.length > 0) { %>
+      <div class="reviews-container">
+        <table class="reviews-table">
+          <thead>
+            <tr>
+              <th>Book</th>
+              <th>Rating</th>
+              <th>Review</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentReviews.forEach(review => { %>
+              <tr>
+                <td>
+                  <a href="/book/<%= review.BOOK_ID %>" style="font-weight: 500; color: var(--primary-color);">
+                    <%= review.TITLE %>
+                  </a>
+                </td>
+                <td class="rating">
+                  <% for (let i = 0; i < 5; i++) { %>
+                    <i class="<%= i < review.RATING ? 'fas' : 'far' %> fa-star"></i>
+                  <% } %>
+                  <span>(<%= review.RATING %>)</span>
+                </td>
+                <td>
+                  <% if (review.REVIEW_TEXT) { %>
+                    <%= review.REVIEW_TEXT.length > 100 ? review.REVIEW_TEXT.substring(0, 100) + '...' : review.REVIEW_TEXT %>
+                  <% } else { %>
+                    <em>No review text</em>
+                  <% } %>
+                </td>
+                <td class="review-date">
+                  <%= new Date(review.DATE_REVIEWED).toLocaleDateString() %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="empty-state">
+        <i class="fas fa-comment-alt"></i>
+        <p>You haven't reviewed any books yet</p>
+        <a href="/discover" class="btn btn-primary">Find Books to Review</a>
+      </div>
+    <% } %>
+  </div>
+
+  <%- include('partials/footer') %>
+</body>
+</html>
