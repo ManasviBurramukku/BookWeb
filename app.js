@@ -21,9 +21,9 @@ app.use(bodyParser.json());
 
 // DB Config
 const dbConfig = {
-  user: 'DBMS',
-  password: '12345',
-  connectString: 'localhost/xe'
+  user: 'manasvi',
+  password: 'abcd',
+  connectString: 'localhost/free'
 };
 // DB Config for ananya
 // const dbConfig = {
@@ -773,6 +773,176 @@ app.get('/profile', async (req, res) => {
     if (connection) await connection.close();
   }
 });
+
+// Community routes
+app.get('/community', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get all community channels
+    const channelsResult = await connection.execute(
+      `SELECT c.channel_id, c.name, c.description, c.created_at, 
+              u.name as creator_name, 
+              COUNT(cm.comment_id) as comment_count
+       FROM community_channels c
+       JOIN users u ON c.created_by = u.user_id
+       LEFT JOIN community_comments cm ON c.channel_id = cm.channel_id
+       GROUP BY c.channel_id, c.name, c.description, c.created_at, u.name
+       ORDER BY c.created_at DESC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('community', { 
+      channels: channelsResult.rows,
+      userId: req.session.userId 
+    });
+  } catch (err) {
+    console.error('Community error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get('/community/channel/:id', async (req, res) => {
+  const channelId = req.params.id;
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get channel info
+    const channelResult = await connection.execute(
+      `SELECT c.channel_id, c.name, c.description, c.created_at, 
+              u.name as creator_name
+       FROM community_channels c
+       JOIN users u ON c.created_by = u.user_id
+       WHERE c.channel_id = :channelId`,
+      { channelId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (channelResult.rows.length === 0) {
+      return res.status(404).send("Channel not found");
+    }
+
+    // Get comments for this channel
+    const commentsResult = await connection.execute(
+      `SELECT cm.comment_id, cm.comment_text, cm.created_at,
+              u.user_id, u.name as user_name
+       FROM community_comments cm
+       JOIN users u ON cm.user_id = u.user_id
+       WHERE cm.channel_id = :channelId
+       ORDER BY cm.created_at DESC`,
+      { channelId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('community-channel', {
+      channel: channelResult.rows[0],
+      comments: commentsResult.rows,
+      userId: req.session.userId
+    });
+  } catch (err) {
+    console.error('Channel error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post('/community/channel/create', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  const { name, description } = req.body;
+  if (!name) return res.status(400).send("Channel name is required");
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get next channel ID
+    const nextIdResult = await connection.execute(
+      `SELECT channel_seq.NEXTVAL FROM dual`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const nextId = nextIdResult.rows[0].NEXTVAL;
+
+    // Create new channel
+    await connection.execute(
+      `INSERT INTO community_channels (channel_id, name, description, created_by)
+       VALUES (:channelId, :name, :description, :userId)`,
+      {
+        channelId: nextId,
+        name: name.trim(),
+        description: description ? description.trim() : null,
+        userId
+      }
+    );
+
+    await connection.commit();
+    res.redirect(`/community/channel/${nextId}`);
+  } catch (err) {
+    console.error('Create channel error:', err);
+    if (connection) await connection.rollback();
+    res.status(500).send("Error creating channel");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post('/community/channel/:id/comment', async (req, res) => {
+  const channelId = req.params.id;
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  const { commentText } = req.body;
+  if (!commentText) return res.status(400).send("Comment text is required");
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get next comment ID
+    const nextIdResult = await connection.execute(
+      `SELECT comment_seq.NEXTVAL FROM dual`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const nextId = nextIdResult.rows[0].NEXTVAL;
+
+    // Add new comment
+    await connection.execute(
+      `INSERT INTO community_comments (comment_id, channel_id, user_id, comment_text)
+       VALUES (:commentId, :channelId, :userId, :commentText)`,
+      {
+        commentId: nextId,
+        channelId,
+        userId,
+        commentText: commentText.trim()
+      }
+    );
+
+    await connection.commit();
+    res.redirect(`/community/channel/${channelId}`);
+  } catch (err) {
+    console.error('Add comment error:', err);
+    if (connection) await connection.rollback();
+    res.status(500).send("Error adding comment");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 
 // Logout route
 app.get('/logout', (req, res) => {

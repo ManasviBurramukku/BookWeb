@@ -59,6 +59,30 @@ EXCEPTION
 END;
 /
 
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE community_comments CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE community_channels CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP SEQUENCE channel_seq';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP SEQUENCE comment_seq';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF;
+END;
+/
+
 -- USERS TABLE
 CREATE TABLE users (
     user_id INT PRIMARY KEY,
@@ -237,5 +261,42 @@ CREATE TABLE saved_books (
     FOREIGN KEY (book_id) REFERENCES books(book_id),
     CONSTRAINT unique_save UNIQUE (user_id, book_id)
 );
+
+
+
+-- COMMUNITY_CHANNELS TABLE
+CREATE TABLE community_channels (
+    channel_id INT PRIMARY KEY,
+    name VARCHAR2(100) NOT NULL,
+    description VARCHAR2(500),
+    created_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT SYSTIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+
+-- COMMUNITY_COMMENTS TABLE
+CREATE TABLE community_comments (
+    comment_id INT PRIMARY KEY,
+    channel_id INT NOT NULL,
+    user_id INT NOT NULL,
+    comment_text VARCHAR2(2000) NOT NULL,
+    created_at TIMESTAMP DEFAULT SYSTIMESTAMP,
+    FOREIGN KEY (channel_id) REFERENCES community_channels(channel_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- SEQUENCES
+CREATE SEQUENCE channel_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE comment_seq START WITH 1 INCREMENT BY 1;
+
+-- INSERT INTO community_channels (ensure 5 values: channel_id, name, description, created_by, created_at)
+INSERT INTO community_channels VALUES (channel_seq.NEXTVAL, 'General Discussion', 'Talk about anything book-related!', 1, SYSTIMESTAMP);
+INSERT INTO community_channels VALUES (channel_seq.NEXTVAL, 'Recommendations', 'Share your favorite books', 2, SYSTIMESTAMP);
+INSERT INTO community_channels VALUES (channel_seq.NEXTVAL, 'Book Clubs', 'Find or start a book club', 3, SYSTIMESTAMP);
+
+-- INSERT INTO community_comments
+INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 1, 1, 'Has anyone read the latest bestseller?', SYSTIMESTAMP);
+INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 1, 2, 'Yes! It was amazing, highly recommend', SYSTIMESTAMP);
+INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 2, 3, 'Looking for fantasy recommendations', SYSTIMESTAMP);
 
 COMMIT;

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BookWeb Community</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-top: 100px;
+    }
+    .header h1 {
+      font-size: 28px;
+      color: #333;
+      margin: 0;
+    }
+    .create-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .create-btn:hover {
+      background-color: #45a049;
+    }
+    .channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding-top: 40px;
+    }
+    .channel-card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+      transition: transform 0.2s;
+    }
+    .channel-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .channel-name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .channel-description {
+      color: #666;
+      margin-bottom: 15px;
+    }
+    .channel-meta {
+      display: flex;
+      justify-content: space-between;
+      color: #888;
+      font-size: 14px;
+    }
+    .comment-count {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90%;
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/nav') %>
+
+  <div class="container">
+    <div class="header">
+      <h1>Community Channels</h1>
+      <button class="create-btn" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> New Channel
+      </button>
+    </div>
+
+    <div class="channels-grid">
+      <% channels.forEach(channel => { %>
+        <a href="/community/channel/<%= channel.CHANNEL_ID %>" class="channel-card">
+          <div class="channel-name"><%= channel.NAME %></div>
+          <div class="channel-description"><%= channel.DESCRIPTION || 'No description' %></div>
+          <div class="channel-meta">
+            <span>Created by <%= channel.CREATOR_NAME %></span>
+            <span class="comment-count">
+              <i class="fas fa-comment"></i> <%= channel.COMMENT_COUNT %>
+            </span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Create Channel Modal -->
+  <div id="createModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 style="margin-top: 0;">Create New Channel</h2>
+      <form action="/community/channel/create" method="POST">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Channel Name</label>
+          <input type="text" name="name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Description (optional)</label>
+          <textarea name="description" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 100px;"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="closeCreateModal()" style="padding: 8px 15px; background-color: #f1f1f1; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+          <button type="submit" style="padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    function openCreateModal() {
+      document.getElementById('createModal').style.display = 'flex';
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside of it
+    document.getElementById('createModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCreateModal();
+      }
+    });
+  </script>
+</body>
+</html>
