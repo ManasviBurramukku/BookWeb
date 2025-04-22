@@ -1,26 +1,295 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <title>Fanart</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fanart Gallery</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #fdfdfd;
+      margin: 0;
+      padding: 0;
+      margin-top: 100px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      margin-top: 100px;
+    }
+    .search-form {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .search-form select, .search-form input {
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .search-form button {
+      padding: 0.5rem 1rem;
+      background-color: #176c1a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    .fanart-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+    .fanart-card:hover {
+      transform: translateY(-5px);
+    }
+    .fanart-image {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+    }
+    .fanart-info {
+      padding: 1rem;
+    }
+    .fanart-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .fanart-meta {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .add-button {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #176c1a;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 100;
+    }
+    .add-button:hover {
+      background-color: #1e8c22;
+    }
+    #uploadModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
+    }
+    .close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-group textarea {
+      min-height: 100px;
+    }
+    .preview-image {
+      max-width: 100%;
+      max-height: 200px;
+      margin-top: 1rem;
+      display: none;
+    }
+    .submit-btn {
+      background-color: #176c1a;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .submit-btn:hover {
+      background-color: #1e8c22;
+    }
+  </style>
 </head>
 <body>
-    <h2 class="text-center">Fanart</h2>
+  <%- include('partials/nav') %>
 
-    <div class="d-flex flex-wrap gap-4 justify-content-center">
-        <% fanarts.forEach(fanart => { %>
-        <div class="card" style="width: 18rem;">
-            <img src="<%= fanart.img %>" class="card-img-top" alt="fanart image">
-            <div class="card-body">
-                <h5 class="card-title"><%= fanart.title %></h5>
-                <p class="card-text"><%= fanart.description %></p>
-                <a href="<%= fanart.link %>" class="btn btn-primary">Go somewhere</a>
-            </div>
-        </div>
-        <% }) %>
+  <div class="container">
+    <div class="header">
+      <h1>Fanart Gallery</h1>
     </div>
 
+    <form class="search-form" action="/fanart/search" method="POST">
+      <select name="bookId">
+        <option value="">All Books</option>
+        <% books.forEach(book => { %>
+          <option value="<%= book.BOOK_ID %>" <%= (searchParams || {}).bookId == book.BOOK_ID ? 'selected' : '' %>>
+            <%= book.TITLE %>
+          </option>
+        <% }); %>
+      </select>
+      
+      <input type="text" name="character" placeholder="Character name" 
+             value="<%= searchParams ? searchParams.character : '' %>">
+      
+      <button type="submit">Search</button>
+    </form>
+
+    <% if (fanarts.length === 0) { %>
+      <p>No fanart found. Be the first to upload!</p>
+    <% } else { %>
+      <div class="gallery">
+        <% fanarts.forEach(fanart => { %>
+          <div class="fanart-card">
+            <img src="/fanart/image/<%= fanart.FANART_ID %>" alt="<%= fanart.IMAGE_NAME %>" class="fanart-image">
+            <div class="fanart-info">
+              <div class="fanart-title"><%= fanart.IMAGE_NAME %></div>
+              <div class="fanart-meta">
+                <% if (fanart.BOOK_TITLE) { %>
+                  Book: <%= fanart.BOOK_TITLE %><br>
+                <% } %>
+                <% if (fanart.CHARACTER_NAME) { %>
+                  Character: <%= fanart.CHARACTER_NAME %><br>
+                <% } %>
+                By: <%= fanart.USER_NAME %><br>
+                <%= new Date(fanart.UPLOAD_DATE).toLocaleDateString() %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <% if (userId) { %>
+      <div class="add-button" onclick="openModal()">
+        <i class="fas fa-plus"></i>
+      </div>
+
+      <div id="uploadModal">
+        <div class="modal-content">
+          <span class="close-btn" onclick="closeModal()">&times;</span>
+          <h2>Upload Fanart</h2>
+          <form id="fanartForm" action="/fanart" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="imageName">Image Title</label>
+              <input type="text" id="imageName" name="imageName" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="fanartImage">Image File</label>
+              <input type="file" id="fanartImage" name="fanartImage" accept="image/*" required onchange="previewImage(this)">
+              <img id="imagePreview" class="preview-image" alt="Image preview">
+            </div>
+            
+            <div class="form-group">
+              <label for="bookId">Book (optional)</label>
+              <select id="bookId" name="bookId">
+                <option value="">Select a book</option>
+                <% books.forEach(book => { %>
+                  <option value="<%= book.BOOK_ID %>"><%= book.TITLE %></option>
+                <% }); %>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="characterName">Character (optional)</label>
+              <input type="text" id="characterName" name="characterName" placeholder="Character name">
+            </div>
+            
+            <button type="submit" class="submit-btn">Upload</button>
+          </form>
+        </div>
+      </div>
+    <% } else { %>
+      <p style="text-align: center; margin-top: 2rem;">
+        <a href="/login" style="color: #176c1a;">Login</a> to upload your own fanart
+      </p>
+    <% } %>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    function openModal() {
+      document.getElementById('uploadModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('uploadModal').style.display = 'none';
+    }
+
+    function previewImage(input) {
+      const preview = document.getElementById('imagePreview');
+      const file = input.files[0];
+      
+      if (file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        }
+        
+        reader.readAsDataURL(file);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('uploadModal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    }
+  </script>
 </body>
 </html>

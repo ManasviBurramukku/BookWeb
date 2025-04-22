@@ -21,9 +21,9 @@ app.use(bodyParser.json());
 
 // DB Config
 const dbConfig = {
-  user: 'manasvi',
-  password: 'abcd',
-  connectString: 'localhost/free'
+  user: 'DBMS',
+  password: '12345',
+  connectString: 'localhost/xe'
 };
 // DB Config for ananya
 // const dbConfig = {
@@ -635,30 +635,30 @@ app.post('/redeem/:id', async (req, res) => {
 
 //fanart
 // Fanart Route
-app.get('/fanart', (req, res) => {
-  const fanarts = [
-    {
-      img: "https://via.placeholder.com/300x200?text=Fanart+1",
-      title: "Beautiful Scene",
-      description: "A fanart from the story.",
-      link: "#"
-    },
-    {
-      img: "https://via.placeholder.com/300x200?text=Fanart+2",
-      title: "Epic Battle",
-      description: "An action-packed fan drawing.",
-      link: "#"
-    },
-    {
-      img: "https://via.placeholder.com/300x200?text=Fanart+3",
-      title: "Character Art",
-      description: "A portrait of a popular character.",
-      link: "#"
-    }
-  ];
+// app.get('/fanart', (req, res) => {
+//   const fanarts = [
+//     {
+//       img: "https://via.placeholder.com/300x200?text=Fanart+1",
+//       title: "Beautiful Scene",
+//       description: "A fanart from the story.",
+//       link: "#"
+//     },
+//     {
+//       img: "https://via.placeholder.com/300x200?text=Fanart+2",
+//       title: "Epic Battle",
+//       description: "An action-packed fan drawing.",
+//       link: "#"
+//     },
+//     {
+//       img: "https://via.placeholder.com/300x200?text=Fanart+3",
+//       title: "Character Art",
+//       description: "A portrait of a popular character.",
+//       link: "#"
+//     }
+//   ];
 
-  res.render('fanart', { fanarts });
-});
+//   res.render('fanart', { fanarts });
+// });
 
 
 app.get('/leaderboard', async (req, res) => {
@@ -943,6 +943,204 @@ app.post('/community/channel/:id/comment', async (req, res) => {
   }
 });
 
+
+// Add multer for file upload handling
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Fanart Routes
+app.get('/fanart', async (req, res) => {
+  const userId = req.session.userId;
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get all fanart with book and user info
+    const fanartResult = await connection.execute(
+      `SELECT f.fanart_id, f.image_name, f.character_name, f.upload_date,
+              b.book_id, b.title as book_title, b.image as book_image,
+              u.user_id, u.name as user_name
+       FROM fanart f
+       LEFT JOIN books b ON f.book_id = b.book_id
+       JOIN users u ON f.user_id = u.user_id
+       ORDER BY f.upload_date DESC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Get all books for the search dropdown
+    const booksResult = await connection.execute(
+      `SELECT book_id, title FROM books ORDER BY title`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Get all unique characters for the search dropdown
+    const charactersResult = await connection.execute(
+      `SELECT DISTINCT character_name FROM fanart WHERE character_name IS NOT NULL ORDER BY character_name`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('fanart', {
+      fanarts: fanartResult.rows,
+      books: booksResult.rows,
+      characters: charactersResult.rows.map(c => c.CHARACTER_NAME),
+      userId: userId,
+      searchParams: {} // Initialize as empty object or with default values
+    });
+  } catch (err) {
+    console.error('Fanart error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Route to serve fanart images
+app.get('/fanart/image/:id', async (req, res) => {
+  const fanartId = req.params.id;
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const result = await connection.execute(
+      `SELECT image_data FROM fanart WHERE fanart_id = :fanartId`,
+      { fanartId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].IMAGE_DATA) {
+      return res.status(404).send('Image not found');
+    }
+
+    const image = result.rows[0].IMAGE_DATA;
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Content-Length': image.length
+    });
+    res.end(image);
+  } catch (err) {
+    console.error('Image retrieval error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Handle fanart submission with file upload
+app.post('/fanart', upload.single('fanartImage'), async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  const { imageName, bookId, characterName } = req.body;
+  const imageFile = req.file;
+
+  if (!imageName || !imageFile) {
+    return res.status(400).send("Image name and file are required");
+  }
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get next fanart ID
+    const nextIdResult = await connection.execute(
+      `SELECT fanart_seq.NEXTVAL FROM dual`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const nextId = nextIdResult.rows[0].NEXTVAL;
+
+    // Insert new fanart with BLOB data
+    await connection.execute(
+      `INSERT INTO fanart (fanart_id, user_id, image_name, image_data, book_id, character_name)
+       VALUES (:fanartId, :userId, :imageName, :imageData, :bookId, :characterName)`,
+      {
+        fanartId: nextId,
+        userId,
+        imageName: imageName.trim(),
+        imageData: imageFile.buffer,
+        bookId: bookId || null,
+        characterName: characterName || null
+      },
+      { autoCommit: true }
+    );
+
+    res.redirect('/fanart');
+  } catch (err) {
+    console.error('Fanart submission error:', err);
+    res.status(500).send("Error submitting fanart");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post('/fanart/search', async (req, res) => {
+  const { bookId, character } = req.body;
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    let query = `SELECT f.fanart_id, f.image_name, f.character_name, f.upload_date,
+                        b.book_id, b.title as book_title, b.image as book_image,
+                        u.user_id, u.name as user_name
+                 FROM fanart f
+                 LEFT JOIN books b ON f.book_id = b.book_id
+                 JOIN users u ON f.user_id = u.user_id
+                 WHERE 1=1`;
+    
+    const binds = {};
+    
+    if (bookId) {
+      query += ` AND f.book_id = :bookId`;
+      binds.bookId = bookId;
+    }
+    
+    if (character) {
+      query += ` AND LOWER(f.character_name) LIKE LOWER(:character)`;
+      binds.character = `%${character}%`;
+    }
+    
+    query += ` ORDER BY f.upload_date DESC`;
+
+    const fanartResult = await connection.execute(
+      query,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Get all books for the search dropdown
+    const booksResult = await connection.execute(
+      `SELECT book_id, title FROM books ORDER BY title`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Get all unique characters for the search dropdown
+    const charactersResult = await connection.execute(
+      `SELECT DISTINCT character_name FROM fanart WHERE character_name IS NOT NULL ORDER BY character_name`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('fanart', {
+      fanarts: fanartResult.rows,
+      books: booksResult.rows,
+      characters: charactersResult.rows.map(c => c.CHARACTER_NAME),
+      userId: req.session.userId,
+      searchParams: { bookId, character }
+    });
+  } catch (err) {
+    console.error('Fanart search error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 // Logout route
 app.get('/logout', (req, res) => {
