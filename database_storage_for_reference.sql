@@ -72,6 +72,12 @@ END;
 /
 
 BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE fanart CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
     EXECUTE IMMEDIATE 'DROP SEQUENCE channel_seq';
 EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF;
 END;
@@ -298,5 +304,21 @@ INSERT INTO community_channels VALUES (channel_seq.NEXTVAL, 'Book Clubs', 'Find 
 INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 1, 1, 'Has anyone read the latest bestseller?', SYSTIMESTAMP);
 INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 1, 2, 'Yes! It was amazing, highly recommend', SYSTIMESTAMP);
 INSERT INTO community_comments VALUES (comment_seq.NEXTVAL, 2, 3, 'Looking for fantasy recommendations', SYSTIMESTAMP);
+
+CREATE TABLE fanart (
+    fanart_id INT PRIMARY KEY,
+    user_id INT NOT NULL,
+    image_name VARCHAR2(100) NOT NULL,
+    image_path VARCHAR2(255) NOT NULL,  -- Stores path to image file
+    book_id INT,
+    character_name VARCHAR2(100),
+    upload_date TIMESTAMP DEFAULT SYSTIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id)
+);
+DROP SEQUENCE fanart_seq;
+CREATE SEQUENCE fanart_seq START WITH 1 INCREMENT BY 1;
+
+ALTER TABLE fanart ADD (downloads INT DEFAULT 0);
 
 COMMIT;
