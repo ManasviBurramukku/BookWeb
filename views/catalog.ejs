@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Catalog | BookWeb</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      margin-top: 100px;
+    }
+    .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    }
+
+    .header h1 {
+    flex: 1;
+    font-size: 28px;
+    color: #333;
+    margin: 0;
+    }
+
+    .search-filter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 2;
+    gap: 15px;
+    }
+
+    .search-box {
+    flex: 2;
+    position: relative;
+    }
+
+    .genre-filter {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    }
+
+
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 30px;
+      outline: none;
+    }
+    .search-box i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+    .genre-filter select {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 30px;
+      background-color: white;
+      cursor: pointer;
+    }
+    .book-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 25px;
+      padding: 20px 0;
+    }
+    .book-card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 15px;
+      transition: transform 0.3s;
+      text-align: center;
+    }
+    .book-card a {
+    text-decoration: none;
+    color: inherit;
+    }
+
+    .book-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .book-cover {
+        width: 100%;
+        height: 200px;
+        object-fit: contain;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        background-color: #fff; /* Optional: adds padding background for different sized images */
+    } 
+
+    .book-title {
+      font-weight: 500;
+      font-size: 16px;
+      margin: 5px 0;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .book-author {
+      color: #666;
+      font-size: 14px;
+      margin: 5px 0;
+    }
+    .book-genre {
+      display: inline-block;
+      background-color: #f0f0f0;
+      color: #555;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    .book-rating {
+      color: #f4c150;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    .no-results {
+      text-align: center;
+      padding: 50px;
+      color: #666;
+      font-size: 18px;
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 768px) {
+      .book-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+      .search-filter {
+        width: 100%;
+      }
+      .search-box {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/nav') %>
+
+
+  <div class="container">
+    <div class="header">
+      <h1>Book Catalog</h1>
+      <div class="search-filter">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Search by title or author...">
+        </div>
+        <div class="genre-filter">
+          <select id="genreSelect">
+            <option value="all">All Genres</option>
+            <% genres.forEach(genre => { %>
+              <option value="<%= genre %>"><%= genre %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="book-grid" id="bookGrid">
+      <% books.forEach(book => { %>
+        <div class="book-card">
+          <a href="/book/<%= book.BOOK_ID %>">
+            <img src="<%= book.IMAGE %>" alt="<%= book.TITLE %>" class="book-cover">
+            <div class="book-title"><%= book.TITLE %></div>
+            <div class="book-author"><%= book.AUTHOR %></div>
+            <div class="book-genre"><%= book.GENRE %></div>
+            <div class="book-rating">
+              <% for (let i = 0; i < 5; i++) { %>
+                <% if (i < Math.floor(book.RATING)) { %>
+                  <i class="fas fa-star"></i>
+                <% } else if (i < Math.ceil(book.RATING)) { %>
+                  <i class="fas fa-star-half-alt"></i>
+                <% } else { %>
+                  <i class="far fa-star"></i>
+                <% } %>
+              <% } %>
+              <span>(<%= book.RATING.toFixed(1) %>)</span>
+            </div>
+          </a>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    // Debounce function to limit how often search executes
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // Function to update book grid with search results
+    async function updateBookGrid() {
+      const query = document.getElementById('searchInput').value;
+      const genre = document.getElementById('genreSelect').value;
+      
+      try {
+        const response = await fetch(`/catalog/search?query=${encodeURIComponent(query)}&genre=${encodeURIComponent(genre)}`);
+        const data = await response.json();
+        
+        const bookGrid = document.getElementById('bookGrid');
+        
+        if (data.books.length === 0) {
+          bookGrid.innerHTML = '<div class="no-results">No books found matching your search</div>';
+          return;
+        }
+        
+        bookGrid.innerHTML = data.books.map(book => `
+          <div class="book-card">
+            <a href="/book/${book.BOOK_ID}">
+              <img src="${book.IMAGE}" alt="${book.TITLE}" class="book-cover">
+              <div class="book-title">${book.TITLE}</div>
+              <div class="book-author">${book.AUTHOR}</div>
+              <div class="book-genre">${book.GENRE}</div>
+              <div class="book-rating">
+                ${Array(5).fill().map((_, i) => 
+                  i < Math.floor(book.RATING) ? 
+                    '<i class="fas fa-star"></i>' : 
+                    i < Math.ceil(book.RATING) ? 
+                      '<i class="fas fa-star-half-alt"></i>' : 
+                      '<i class="far fa-star"></i>'
+                ).join('')}
+                <span>(${book.RATING.toFixed(1)})</span>
+              </div>
+            </a>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error fetching search results:', error);
+      }
+    }
+
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', debounce(updateBookGrid, 300));
+    document.getElementById('genreSelect').addEventListener('change', updateBookGrid);
+  </script>
+</body>
+</html>

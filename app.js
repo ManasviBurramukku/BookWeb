@@ -244,75 +244,6 @@ app.post('/search', async (req, res) => {
   }
 });
 
-// Book details route
-// app.get('/book/:id', async (req, res) => {
-//   const bookId = req.params.id;
-//   const userId = req.session.userId;
-//   const sort = req.query.sort || 'recent'; // Get sort parameter or default to 'recent'
-//   let connection;
-
-//   try {
-//     connection = await oracledb.getConnection(dbConfig);
-
-//     // 1. Get book details
-//     const bookResult = await connection.execute(
-//       `SELECT book_id, title, author, genre, image, description, 
-//               NVL(rating, 0) as rating 
-//        FROM books 
-//        WHERE book_id = :bookId`,
-//       { bookId },
-//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
-//     );
-
-//     if (bookResult.rows.length === 0) {
-//       return res.status(404).send("Book not found");
-//     }
-
-//     const book = bookResult.rows[0];
-
-//     // 2. Determine sort order
-//     let orderBy;
-//     switch(sort) {
-//       case 'high':
-//         orderBy = 'r.rating DESC, r.date_reviewed DESC';
-//         break;
-//       case 'low':
-//         orderBy = 'r.rating ASC, r.date_reviewed DESC';
-//         break;
-//       case 'recent':
-//       default:
-//         orderBy = 'r.date_reviewed DESC';
-//     }
-
-//     // 3. Get reviews with sorting and date_reviewed
-//     const reviewsResult = await connection.execute(
-//       `SELECT r.review_id, r.book_id, r.user_id, r.rating, 
-//               r.likes, r.dislikes, u.name,
-//               DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
-//               r.date_reviewed
-//        FROM reviews r
-//        JOIN users u ON r.user_id = u.user_id
-//        WHERE r.book_id = :bookId
-//        ORDER BY ${orderBy}`,
-//       { bookId },
-//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
-//     );
-
-//     res.render('book', {
-//       book,
-//       reviews: reviewsResult.rows,
-//       userId,
-//       currentSort: sort // Pass current sort option to view
-//     });
-
-//   } catch (err) {
-//     console.error('Database error:', err);
-//     res.status(500).send("Internal Server Error");
-//   } finally {
-//     if (connection) await connection.close();
-//   }
-// });
-
 app.post('/book/:id/review', async (req, res) => {
   const bookId = req.params.id;
   const userId = req.session.userId;
@@ -758,12 +689,27 @@ app.get('/profile', async (req, res) => {
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
     const recentReviews = reviewsResult.rows;
+    // In your /profile route, add this query after the other queries
+    const channelsResult = await connection.execute(
+      `SELECT c.channel_id, c.name, c.description, c.created_at,
+              COUNT(cm.comment_id) as comment_count
+      FROM community_channels c
+      LEFT JOIN community_comments cm ON c.channel_id = cm.channel_id
+      WHERE c.created_by = :userId
+      GROUP BY c.channel_id, c.name, c.description, c.created_at
+      ORDER BY c.created_at DESC`,
+      { userId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const userChannels = channelsResult.rows;
 
+    // Then add userChannels to your render parameters:
     res.render('profile', {
       user,
       savedBooks,
       booksRead,
-      recentReviews
+      recentReviews,
+      userChannels
     });
 
   } catch (err) {
@@ -943,6 +889,85 @@ app.post('/community/channel/:id/comment', async (req, res) => {
   }
 });
 
+// Book catalog route
+app.get('/catalog', async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.redirect('/login');
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get all books
+    const booksResult = await connection.execute(
+      `SELECT book_id, title, author, genre, image, rating 
+       FROM books 
+       ORDER BY title`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Get all unique genres for filter
+    const genresResult = await connection.execute(
+      `SELECT DISTINCT genre FROM books ORDER BY genre`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.render('catalog', {
+      books: booksResult.rows,
+      genres: genresResult.rows.map(g => g.GENRE),
+      userId: req.session.userId
+    });
+  } catch (err) {
+    console.error('Catalog error:', err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Search books route (AJAX endpoint)
+app.get('/catalog/search', async (req, res) => {
+  const { query, genre } = req.query;
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    let sql = `SELECT book_id, title, author, genre, image, rating 
+               FROM books 
+               WHERE 1=1`;
+    const binds = {};
+
+    if (query) {
+      sql += ` AND (LOWER(title) LIKE LOWER(:query) OR LOWER(author) LIKE LOWER(:query))`;
+      binds.query = `%${query}%`;
+    }
+
+    if (genre && genre !== 'all') {
+      sql += ` AND genre = :genre`;
+      binds.genre = genre;
+    }
+
+    sql += ` ORDER BY title`;
+
+    const result = await connection.execute(
+      sql,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    res.json({ books: result.rows });
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ error: 'Database error' });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 // Add multer for file upload handling
 const multer = require('multer');
