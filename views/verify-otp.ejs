@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - BookWeb</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verify Your Email</h1>
+        <% if (error) { %>
+            <div class="alert alert-danger"><%= error %></div>
+        <% } %>
+        <% if (typeof resent !== 'undefined' && resent) { %>
+            <div class="alert alert-success">New OTP sent successfully!</div>
+        <% } %>
+        <p>We've sent a 6-digit OTP to <strong><%= email %></strong>. Please enter it below:</p>
+        
+        <form action="/verify-otp" method="POST">
+            <input type="hidden" name="email" value="<%= email %>">
+            <div class="form-group">
+                <label for="otp">OTP Code:</label>
+                <input type="text" id="otp" name="otp" required class="form-control" maxlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary">Verify</button>
+        </form>
+        
+        <form action="/resend-otp" method="POST" style="margin-top: 20px;">
+            <input type="hidden" name="email" value="<%= email %>">
+            <button type="submit" class="btn btn-secondary">Resend OTP</button>
+        </form>
+    </div>
+</body>
+</html>

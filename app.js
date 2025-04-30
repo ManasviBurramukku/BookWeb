@@ -3,8 +3,24 @@ const path = require('path');
 const oracledb = require('oracledb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const saltRounds = 12;
 
 const app = express();
+
+// Email transporter configuration
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  auth: {
+    user: "iit2023026@iiita.ac.in", // Replace with your email
+    pass: "wugl cnbw ggqf puzc", // Replace with your app password
+  },
+});
+
+// Temporary storage for OTPs and pending users
+const pendingUsers = new Map();
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -16,27 +32,19 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
-// Add these at the top with other middleware
 app.use(bodyParser.json());
 
 // DB Config
 const dbConfig = {
-  user: 'DBMS',
-  password: '12345',
-  connectString: 'localhost/xe'
+  user: 'manasvi',
+  password: 'abcd',
+  connectString: 'localhost/free'
 };
-// DB Config for ananya
-// const dbConfig = {
-//   user: 'sys',
-//   password: 'abcd',
-//   connectString: 'localhost/free',
-//   privilege: require('oracledb').SYSDBA // or SYSOPER
-// };
 
 // Routes
 app.get('/', (req, res) => res.render('landing'));
 
-// Login
+// Login (unchanged)
 app.get('/login', (req, res) => {
   res.render('login', { error: null });
 });
@@ -49,18 +57,23 @@ app.post('/login', async (req, res) => {
     connection = await oracledb.getConnection(dbConfig);
 
     const result = await connection.execute(
-      `SELECT user_id FROM users WHERE LOWER(email) = LOWER(:email) AND TRIM(pass) = TRIM(:password)`,
-      { email: email.trim(), password: password.trim() },
+      `SELECT user_id, pass FROM users WHERE LOWER(email) = LOWER(:email)`,
+      { email: email.trim() },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    console.log('Login attempt:', email, password);
-  console.log('Query result:', result);
 
-    if (result.rows.length > 0) {
-      req.session.userId = result.rows[0].USER_ID;
-      res.redirect('/home');
+    if (result.rows.length === 0) {
+      return res.render('login', { error: 'Invalid email or password' });
+    }
+
+    const user = result.rows[0];
+    const passwordMatch = await bcrypt.compare(password.trim(), user.PASS);
+
+    if (passwordMatch) {
+      req.session.userId = user.USER_ID;
+      return res.redirect('/home');
     } else {
-      res.render('login', { error: 'Invalid email or password' });
+      return res.render('login', { error: 'Invalid email or password' });
     }
   } catch (err) {
     console.error(err);
@@ -70,93 +83,224 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Signup
+// Signup with OTP verification
 app.get('/signup', (req, res) => {
   res.render('signup', { error: null, name: '', email: '' });
 });
 
 app.post('/signup', async (req, res) => {
-    const { name, email, password, confirm_password } = req.body;
-    
-    // Input validation
-    if (!name || !email || !password || !confirm_password) {
-      return res.render('signup', {
-        error: 'All fields are required',
-        name,
-        email
-      });
-    }
+  const { name, email, password, confirm_password } = req.body;
   
-    if (password !== confirm_password) {
-      return res.render('signup', {
-        error: 'Passwords do not match',
-        name,
-        email
-      });
-    }
-  
-    let connection;
-    try {
-      connection = await oracledb.getConnection(dbConfig);
-  
-      // Check if email exists
-      const check = await connection.execute(
-        `SELECT user_id FROM users WHERE LOWER(email) = LOWER(:email)`,
-        { email: email.trim().toLowerCase() },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
-      );
-  
-      if (check.rows.length > 0) {
-        return res.render('signup', {
-          error: 'Email already exists',
-          name,
-          email
-        });
-      }
-  
-      // Get next user_id
-      const nextIdResult = await connection.execute(
-        'SELECT NVL(MAX(user_id), 0) + 1 AS next_id FROM users',
-        [],
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
-      );
-      const nextId = nextIdResult.rows[0].NEXT_ID;
-  
-      // Insert new user
-      await connection.execute(
-        `INSERT INTO users (user_id, name, email, pass, total_points, last_reviewed_book_id)
-         VALUES (:user_id, :name, :email, :password, 0, NULL)`,
-        {
-          user_id: nextId,
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password: password.trim()
-        }
-      );
-  
-      await connection.commit();
-  
-      req.session.userId = nextId;
-      return res.redirect('/home');
-    } catch (err) {
-      console.error('Signup error:', err);
-      await connection.rollback();
-      return res.render('signup', {
-        error: 'Database error occurred',
-        name,
-        email
-      });
-    } finally {
-      if (connection) {
-        try {
-          await connection.close();
-        } catch (err) {
-          console.error('Error closing connection:', err);
-        }
-      }
-    }
-  });
+  // Input validation
+  if (!name || !email || !password || !confirm_password) {
+    return res.render('signup', {
+      error: 'All fields are required',
+      name,
+      email
+    });
+  }
 
+  if (password !== confirm_password) {
+    return res.render('signup', {
+      error: 'Passwords do not match',
+      name,
+      email
+    });
+  }
+
+  if (password.length < 8) {
+    return res.render('signup', {
+      error: 'Password must be at least 8 characters',
+      name,
+      email
+    });
+  }
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Check if email exists in actual users
+    const check = await connection.execute(
+      `SELECT user_id FROM users WHERE LOWER(email) = LOWER(:email)`,
+      { email: email.trim().toLowerCase() },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (check.rows.length > 0) {
+      return res.render('signup', {
+        error: 'Email already exists',
+        name,
+        email
+      });
+    }
+
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedPassword = await bcrypt.hash(password.trim(), saltRounds);
+
+    // Store user data temporarily with OTP
+    pendingUsers.set(email, {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      hashedPassword,
+      otp,
+      expiresAt: Date.now() + 15 * 60 * 1000 // OTP valid for 15 minutes
+    });
+
+    // Send OTP email
+    const mailOptions = {
+      from: 'your-email@gmail.com',
+      to: email,
+      subject: 'Your OTP for BookWeb Verification',
+      text: `Your OTP is: ${otp}\nThis OTP is valid for 15 minutes.`,
+      html: `<p>Your OTP is: <strong>${otp}</strong></p><p>This OTP is valid for 15 minutes.</p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Redirect to OTP verification page
+    return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+
+  } catch (err) {
+    console.error('Signup error:', err);
+    return res.render('signup', {
+      error: 'Error during signup process',
+      name,
+      email
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// OTP Verification Page
+app.get('/verify-otp', (req, res) => {
+  const email = req.query.email;
+  if (!email || !pendingUsers.has(email)) {
+    return res.redirect('/signup');
+  }
+  res.render('verify-otp', { email, error: null });
+});
+
+app.post('/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  
+  if (!email || !otp || !pendingUsers.has(email)) {
+    return res.redirect('/signup');
+  }
+
+  const pendingUser = pendingUsers.get(email);
+
+  // Check if OTP is expired
+  if (pendingUser.expiresAt < Date.now()) {
+    pendingUsers.delete(email);
+    return res.render('verify-otp', {
+      email,
+      error: 'OTP has expired. Please sign up again.'
+    });
+  }
+
+  // Verify OTP
+  if (otp !== pendingUser.otp) {
+    return res.render('verify-otp', {
+      email,
+      error: 'Invalid OTP. Please try again.'
+    });
+  }
+
+  // OTP is valid - proceed with user creation
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Get next user_id
+    const nextIdResult = await connection.execute(
+      'SELECT NVL(MAX(user_id), 0) + 1 AS next_id FROM users',
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const nextId = nextIdResult.rows[0].NEXT_ID;
+
+    // Insert new user
+    await connection.execute(
+      `INSERT INTO users (user_id, name, email, pass, total_points, last_reviewed_book_id)
+       VALUES (:user_id, :name, :email, :password, 0, NULL)`,
+      {
+        user_id: nextId,
+        name: pendingUser.name,
+        email: pendingUser.email,
+        password: pendingUser.hashedPassword
+      }
+    );
+
+    await connection.commit();
+
+    // Clean up
+    pendingUsers.delete(email);
+
+    // Set session and redirect
+    req.session.userId = nextId;
+    return res.redirect('/home');
+  } catch (err) {
+    console.error('User creation error:', err);
+    if (connection) await connection.rollback();
+    return res.render('verify-otp', {
+      email,
+      error: 'Error creating account. Please try again.'
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// Resend OTP
+app.post('/resend-otp', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email || !pendingUsers.has(email)) {
+    return res.redirect('/signup');
+  }
+
+  const pendingUser = pendingUsers.get(email);
+
+  // Generate new OTP
+  const newOtp = crypto.randomInt(100000, 999999).toString();
+  pendingUser.otp = newOtp;
+  pendingUser.expiresAt = Date.now() + 15 * 60 * 1000; // Reset expiration
+
+  try {
+    // Send new OTP email
+    const mailOptions = {
+      from: 'your-email@gmail.com',
+      to: email,
+      subject: 'Your New OTP for BookWeb Verification',
+      text: `Your new OTP is: ${newOtp}\nThis OTP is valid for 15 minutes.`,
+      html: `<p>Your new OTP is: <strong>${newOtp}</strong></p><p>This OTP is valid for 15 minutes.</p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+    return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}&resent=true`);
+  } catch (err) {
+    console.error('Resend OTP error:', err);
+    return res.render('verify-otp', {
+      email,
+      error: 'Error resending OTP. Please try again.'
+    });
+  }
+});
 // Home
 app.get('/home', async (req, res) => {
   const userId = req.session.userId;
