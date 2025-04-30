@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fanart Gallery</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Roboto', sans-serif;
@@ -30,11 +30,13 @@
       display: flex;
       gap: 1rem;
       margin-bottom: 2rem;
+      flex-wrap: wrap;
     }
     .search-form select, .search-form input {
       padding: 0.5rem;
       border-radius: 4px;
       border: 1px solid #ddd;
+      min-width: 200px;
     }
     .search-form button {
       padding: 0.5rem 1rem;
@@ -43,6 +45,10 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .search-form button:hover {
+      background-color: #1e8c22;
     }
     .gallery {
       display: grid;
@@ -54,15 +60,26 @@
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      transition: transform 0.3s ease;
+      transition: all 0.3s ease;
+      position: relative;
     }
     .fanart-card:hover {
       transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    .fanart-image-container {
+      position: relative;
+      overflow: hidden;
     }
     .fanart-image {
       width: 100%;
       height: 250px;
       object-fit: cover;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+    .fanart-card:hover .fanart-image {
+      transform: scale(1.03);
     }
     .fanart-info {
       padding: 1rem;
@@ -70,14 +87,18 @@
     .fanart-title {
       font-weight: bold;
       margin-bottom: 0.5rem;
+      font-size: 1.1rem;
     }
     .fanart-meta {
       font-size: 0.9rem;
       color: #666;
     }
+    .fanart-meta div {
+      margin-bottom: 0.3rem;
+    }
     .add-button {
       position: fixed;
-      bottom: 2rem;
+      top: 9.5rem;
       right: 2rem;
       width: 60px;
       height: 60px;
@@ -91,9 +112,11 @@
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       z-index: 100;
+      transition: all 0.3s ease;
     }
     .add-button:hover {
       background-color: #1e8c22;
+      transform: scale(1.1);
     }
     #uploadModal {
       display: none;
@@ -114,6 +137,17 @@
       width: 90%;
       max-width: 500px;
       position: relative;
+      animation: modalFadeIn 0.3s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     .close-btn {
       position: absolute;
@@ -121,6 +155,11 @@
       right: 1rem;
       font-size: 1.5rem;
       cursor: pointer;
+      color: #666;
+      transition: color 0.3s;
+    }
+    .close-btn:hover {
+      color: #333;
     }
     .form-group {
       margin-bottom: 1rem;
@@ -128,12 +167,14 @@
     .form-group label {
       display: block;
       margin-bottom: 0.5rem;
+      font-weight: 500;
     }
     .form-group input, .form-group select, .form-group textarea {
       width: 100%;
       padding: 0.5rem;
       border: 1px solid #ddd;
       border-radius: 4px;
+      font-family: 'Roboto', sans-serif;
     }
     .form-group textarea {
       min-height: 100px;
@@ -143,6 +184,8 @@
       max-height: 200px;
       margin-top: 1rem;
       display: none;
+      border-radius: 4px;
+      border: 1px solid #ddd;
     }
     .submit-btn {
       background-color: #176c1a;
@@ -152,9 +195,123 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 1rem;
+      width: 100%;
+      margin-top: 1rem;
+      transition: background-color 0.3s;
     }
     .submit-btn:hover {
       background-color: #1e8c22;
+    }
+    .error-message {
+      color: #dc3545;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+    .character-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .character-tag {
+      background-color: #e9ecef;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .character-tag:hover {
+      background-color: #dee2e6;
+      transform: translateY(-1px);
+    }
+
+    /* Enhanced Download Button Styles */
+    .download-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all 0.3s ease;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(2px);
+    }
+    .fanart-card:hover .download-container {
+      opacity: 1;
+    }
+    .download-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.9);
+      color: #333;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .download-btn:hover {
+      transform: scale(1.1);
+      background: white;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    .download-icon {
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+    }
+    .download-text {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .download-count {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+    }
+    .download-count i {
+      margin-right: 3px;
+      font-size: 0.6rem;
+    }
+
+    /* Animation for download counter */
+    @keyframes countPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+      .search-form select, .search-form input {
+        min-width: 100%;
+      }
+      .download-container {
+        opacity: 1;
+        background: rgba(0,0,0,0.3);
+      }
+      .download-btn {
+        width: 60px;
+        height: 60px;
+      }
     }
   </style>
 </head>
@@ -176,30 +333,63 @@
         <% }); %>
       </select>
       
-      <input type="text" name="character" placeholder="Character name" 
-             value="<%= searchParams ? searchParams.character : '' %>">
+      <select name="character">
+        <option value="">All Characters</option>
+        <% characters.forEach(char => { %>
+          <option value="<%= char %>" <%= (searchParams || {}).character == char ? 'selected' : '' %>>
+            <%= char %>
+          </option>
+        <% }); %>
+      </select>
       
       <button type="submit">Search</button>
     </form>
 
     <% if (fanarts.length === 0) { %>
-      <p>No fanart found. Be the first to upload!</p>
+      <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px;">
+        <i class="fas fa-palette" style="font-size: 3rem; color: #dee2e6; margin-bottom: 1rem;"></i>
+        <h3>No fanart found</h3>
+        <p>Be the first to upload your artwork!</p>
+        <% if (!userId) { %>
+          <a href="/login" style="color: #176c1a; font-weight: 500;">Login to upload</a>
+        <% } %>
+      </div>
     <% } else { %>
       <div class="gallery">
         <% fanarts.forEach(fanart => { %>
           <div class="fanart-card">
-            <img src="/fanart/image/<%= fanart.FANART_ID %>" alt="<%= fanart.IMAGE_NAME %>" class="fanart-image">
+            <div class="fanart-image-container">
+              <img src="<%= fanart.IMAGE_PATH %>" alt="<%= fanart.IMAGE_NAME %>" class="fanart-image" 
+                   onerror="this.src='/images/placeholder-art.jpg'">
+              
+              <!-- Enhanced Download Button -->
+              <div class="download-container">
+                <a href="/fanart/download/<%= fanart.FANART_ID %>" class="download-btn" title="Download" onclick="trackDownload(event, <%= fanart.FANART_ID %>)">
+                  <div class="download-icon"><i class="fas fa-download"></i></div>
+                  <div class="download-text">Download</div>
+                </a>
+              </div>
+              
+              <div class="download-count">
+                <i class="fas fa-download"></i>
+                <span class="download-number"><%= fanart.DOWNLOADS || 0 %></span>
+              </div>
+            </div>
             <div class="fanart-info">
               <div class="fanart-title"><%= fanart.IMAGE_NAME %></div>
               <div class="fanart-meta">
                 <% if (fanart.BOOK_TITLE) { %>
-                  Book: <%= fanart.BOOK_TITLE %><br>
+                  <div><strong>Book:</strong> <%= fanart.BOOK_TITLE %></div>
                 <% } %>
                 <% if (fanart.CHARACTER_NAME) { %>
-                  Character: <%= fanart.CHARACTER_NAME %><br>
+                  <div><strong>Character:</strong> <%= fanart.CHARACTER_NAME %></div>
                 <% } %>
-                By: <%= fanart.USER_NAME %><br>
-                <%= new Date(fanart.UPLOAD_DATE).toLocaleDateString() %>
+                <div><strong>By:</strong> <%= fanart.USER_NAME %></div>
+                <div><%= new Date(fanart.UPLOAD_DATE).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                }) %></div>
               </div>
             </div>
           </div>
@@ -218,20 +408,22 @@
           <h2>Upload Fanart</h2>
           <form id="fanartForm" action="/fanart" method="POST" enctype="multipart/form-data">
             <div class="form-group">
-              <label for="imageName">Image Title</label>
+              <label for="imageName">Artwork Title *</label>
               <input type="text" id="imageName" name="imageName" required>
+              <div class="error-message" id="titleError">Please enter a title</div>
             </div>
             
             <div class="form-group">
-              <label for="fanartImage">Image File</label>
+              <label for="fanartImage">Image File *</label>
               <input type="file" id="fanartImage" name="fanartImage" accept="image/*" required onchange="previewImage(this)">
+              <div class="error-message" id="imageError">Please select an image file</div>
               <img id="imagePreview" class="preview-image" alt="Image preview">
             </div>
             
             <div class="form-group">
-              <label for="bookId">Book (optional)</label>
+              <label for="bookId">Related Book (optional)</label>
               <select id="bookId" name="bookId">
-                <option value="">Select a book</option>
+                <option value="">-- Select a book --</option>
                 <% books.forEach(book => { %>
                   <option value="<%= book.BOOK_ID %>"><%= book.TITLE %></option>
                 <% }); %>
@@ -241,16 +433,24 @@
             <div class="form-group">
               <label for="characterName">Character (optional)</label>
               <input type="text" id="characterName" name="characterName" placeholder="Character name">
+              <% if (characters.length > 0) { %>
+                <div class="character-list">
+                  <small>Popular characters:</small>
+                  <% characters.slice(0, 5).forEach(char => { %>
+                    <span class="character-tag" onclick="document.getElementById('characterName').value = '<%= char %>'">
+                      <%= char %>
+                    </span>
+                  <% }); %>
+                </div>
+              <% } %>
             </div>
             
-            <button type="submit" class="submit-btn">Upload</button>
+            <button type="submit" class="submit-btn">
+              <i class="fas fa-upload"></i> Upload Artwork
+            </button>
           </form>
         </div>
       </div>
-    <% } else { %>
-      <p style="text-align: center; margin-top: 2rem;">
-        <a href="/login" style="color: #176c1a;">Login</a> to upload your own fanart
-      </p>
     <% } %>
   </div>
 
@@ -259,6 +459,8 @@
   <script>
     function openModal() {
       document.getElementById('uploadModal').style.display = 'flex';
+      document.getElementById('fanartForm').reset();
+      document.getElementById('imagePreview').style.display = 'none';
     }
 
     function closeModal() {
@@ -270,6 +472,26 @@
       const file = input.files[0];
       
       if (file) {
+        // Validate file type
+        if (!file.type.match('image.*')) {
+          document.getElementById('imageError').textContent = 'Only image files are allowed';
+          document.getElementById('imageError').style.display = 'block';
+          input.value = '';
+          preview.style.display = 'none';
+          return;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          document.getElementById('imageError').textContent = 'File size must be less than 5MB';
+          document.getElementById('imageError').style.display = 'block';
+          input.value = '';
+          preview.style.display = 'none';
+          return;
+        }
+        
+        document.getElementById('imageError').style.display = 'none';
+        
         const reader = new FileReader();
         
         reader.onload = function(e) {
@@ -282,6 +504,31 @@
         preview.style.display = 'none';
       }
     }
+
+    // Form validation
+    document.getElementById('fanartForm').addEventListener('submit', function(e) {
+      let valid = true;
+      
+      // Validate title
+      if (!document.getElementById('imageName').value.trim()) {
+        document.getElementById('titleError').style.display = 'block';
+        valid = false;
+      } else {
+        document.getElementById('titleError').style.display = 'none';
+      }
+      
+      // Validate image
+      if (!document.getElementById('fanartImage').files.length) {
+        document.getElementById('imageError').style.display = 'block';
+        valid = false;
+      } else {
+        document.getElementById('imageError').style.display = 'none';
+      }
+      
+      if (!valid) {
+        e.preventDefault();
+      }
+    });
 
     // Close modal when clicking outside
     window.onclick = function(event) {

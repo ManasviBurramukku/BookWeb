@@ -277,33 +277,7 @@
       margin: 10px 0;
     }
     
-    /* Responsive Adjustments */
-    @media (max-width: 768px) {
-      .profile-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 20px;
-      }
-      
-      .profile-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-      }
-      
-      .stats-container {
-        grid-template-columns: 1fr;
-      }
-      
-      .saved-books {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      }
-      
-      .reviews-table {
-        display: block;
-        overflow-x: auto;
-      }
-      /* Community Channels Section */
+    /* Community Channels Section */
     .channels-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -483,20 +457,46 @@
       background-color: #2c4763;
       transform: translateY(-2px);
     }
+
+    /* Responsive Adjustments */
     @media (max-width: 768px) {
-    .channels-grid {
-      grid-template-columns: 1fr;
-    }
-    
-    .channel-header {
-      flex-direction: column;
-      text-align: center;
-    }
-    
-    .channel-icon {
-      margin-bottom: 15px;
-    }
-}
+      .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+      
+      .profile-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .stats-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .saved-books {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      
+      .reviews-table {
+        display: block;
+        overflow-x: auto;
+      }
+      
+      .channels-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .channel-header {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .channel-icon {
+        margin-bottom: 15px;
+      }
     }
   </style>
 </head>
@@ -534,10 +534,6 @@
       <div class="stat-card">
         <div class="stat-label">Reviews</div>
         <div class="stat-number"><%= recentReviews.length %></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Reading Streak</div>
-        <div class="stat-number">7 days</div>
       </div>
     </div>
     
@@ -614,39 +610,49 @@
         <a href="/discover" class="btn btn-primary">Find Books to Review</a>
       </div>
     <% } %>
-  </div>
-  <!-- Community Channels Section -->
-<div class="channels-grid">
-    <% userChannels.forEach(channel => { %>
-      <div class="channel-card">
-        <div class="channel-header">
-          <div class="channel-icon">
-            <i class="fas fa-comments"></i>
+    
+    <!-- Community Channels Section -->
+    <h2 class="section-title">My Communities</h2>
+    <% if (userChannels.length > 0) { %>
+      <div class="channels-grid">
+        <% userChannels.forEach(channel => { %>
+          <div class="channel-card">
+            <div class="channel-header">
+              <div class="channel-icon">
+                <i class="fas fa-comments"></i>
+              </div>
+              <div class="channel-meta">
+                <h3><a href="/community/channel/<%= channel.CHANNEL_ID %>"><%= channel.NAME %></a></h3>
+                <span class="channel-stats">
+                  <i class="fas fa-comment"></i> <%= channel.COMMENT_COUNT %> discussions
+                </span>
+              </div>
+            </div>
+            <div class="channel-body">
+              <p><%= channel.DESCRIPTION %></p>
+            </div>
+            <div class="channel-footer">
+              <span class="channel-date">
+                Created <%= new Date(channel.CREATED_AT).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                }) %>
+              </span>
+              <a href="/community/channel/<%= channel.CHANNEL_ID %>" class="channel-link">
+                Visit Channel <i class="fas fa-arrow-right"></i>
+              </a>
+            </div>
           </div>
-          <div class="channel-meta">
-            <h3><a href="/community/<%= channel.CHANNEL_ID %>"><%= channel.NAME %></a></h3>
-            <span class="channel-stats">
-              <i class="fas fa-comment"></i> <%= channel.COMMENT_COUNT %> discussions
-            </span>
-          </div>
-        </div>
-        <div class="channel-body">
-          <p><%= channel.DESCRIPTION %></p>
-        </div>
-        <div class="channel-footer">
-          <span class="channel-date">
-            Created <%= new Date(channel.CREATED_AT).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'short', 
-              day: 'numeric' 
-            }) %>
-          </span>
-          <a href="/community/<%= channel.CHANNEL_ID %>" class="channel-link">
-            Visit Channel <i class="fas fa-arrow-right"></i>
-          </a>
-        </div>
+        <% }) %>
       </div>
-    <% }) %>
+    <% } else { %>
+      <div class="empty-state">
+        <i class="fas fa-comments"></i>
+        <p>You haven't created any communities yet</p>
+        <a href="/community" class="btn btn-primary">Create a Community</a>
+      </div>
+    <% } %>
   </div>
 
   <%- include('partials/footer') %>

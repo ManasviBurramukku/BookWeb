@@ -3,6 +3,8 @@ const path = require('path');
 const oracledb = require('oracledb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const fs = require('fs');
+const multer = require('multer');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
@@ -33,6 +35,34 @@ app.use(session({
   saveUninitialized: false
 }));
 app.use(bodyParser.json());
+
+// Configure file uploads
+const imagesDir = path.join(__dirname, 'public', 'images');
+if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, imagesDir);
+  },
+  filename: (req, file, cb) => {
+    const fileExt = path.extname(file.originalname);
+    const fileName = `fanart_${Date.now()}${fileExt}`;
+    cb(null, fileName);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // DB Config
 const dbConfig = {
@@ -307,7 +337,6 @@ app.get('/home', async (req, res) => {
   if (!userId) return res.redirect('/login');
 
   let connection;
-
   try {
     connection = await oracledb.getConnection(dbConfig);
 
@@ -357,7 +386,6 @@ app.get('/home', async (req, res) => {
   }
 });
 
-
 // Search route
 app.post('/search', async (req, res) => {
   const { searchQuery } = req.body;
@@ -400,7 +428,6 @@ app.post('/book/:id/review', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // 1. Get the next review ID
     const nextIdResult = await connection.execute(
       `SELECT NVL(MAX(review_id), 0) + 1 AS next_id FROM reviews`,
       [],
@@ -408,36 +435,31 @@ app.post('/book/:id/review', async (req, res) => {
     );
     const nextId = nextIdResult.rows[0].NEXT_ID;
 
-    // 2. First insert the review with empty CLOB
     await connection.execute(
       `INSERT INTO reviews (review_id, book_id, user_id, rating, review, likes, dislikes, date_reviewed)
        VALUES (:nextId, :bookId, :userId, :rating, EMPTY_CLOB(), 0, 0, SYSTIMESTAMP)`,
       { nextId, bookId, userId, rating }
     );
 
-    // 3. Now select the CLOB for updating
     const result = await connection.execute(
       `SELECT review FROM reviews WHERE review_id = :reviewId FOR UPDATE`,
       { reviewId: nextId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
-    // 4. Write to the CLOB
     const lob = result.rows[0].REVIEW;
     await lob.write(review);
 
-    // 5. Update user info
     await connection.execute(
       `UPDATE users SET 
          last_reviewed_book_id = :bookId,
-         total_points = total_points + 10 
+         total_points = total_points + 2 
        WHERE user_id = :userId`,
       { bookId, userId }
     );
 
     await connection.commit();
     res.redirect(`/book/${bookId}?sort=recent`); 
-
   } catch (err) {
     console.error('Review submission error:', err);
     if (connection) await connection.rollback();
@@ -447,7 +469,6 @@ app.post('/book/:id/review', async (req, res) => {
   }
 });
 
-// Add this new route to handle saving/unsaving books
 app.post('/book/:id/save', async (req, res) => {
   const bookId = req.params.id;
   const userId = req.session.userId;
@@ -458,7 +479,6 @@ app.post('/book/:id/save', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Check if already saved
     const checkResult = await connection.execute(
       `SELECT 1 FROM saved_books WHERE user_id = :userId AND book_id = :bookId`,
       { userId, bookId },
@@ -466,7 +486,6 @@ app.post('/book/:id/save', async (req, res) => {
     );
 
     if (checkResult.rows.length > 0) {
-      // Already saved - remove it
       await connection.execute(
         `DELETE FROM saved_books WHERE user_id = :userId AND book_id = :bookId`,
         { userId, bookId }
@@ -474,7 +493,6 @@ app.post('/book/:id/save', async (req, res) => {
       await connection.commit();
       return res.json({ saved: false });
     } else {
-      // Not saved - add it
       const nextIdResult = await connection.execute(
         `SELECT NVL(MAX(save_id), 0) + 1 AS next_id FROM saved_books`,
         [],
@@ -499,7 +517,6 @@ app.post('/book/:id/save', async (req, res) => {
   }
 });
 
-// Update your existing book route to include the saved status check
 app.get('/book/:id', async (req, res) => {
   const bookId = req.params.id;
   const userId = req.session.userId;
@@ -509,7 +526,6 @@ app.get('/book/:id', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // 1. Get book details
     const bookResult = await connection.execute(
       `SELECT book_id, title, author, genre, image, description, 
               NVL(rating, 0) as rating 
@@ -525,7 +541,6 @@ app.get('/book/:id', async (req, res) => {
 
     const book = bookResult.rows[0];
 
-    // 2. Check if book is saved by this user
     let isSaved = false;
     if (userId) {
       const savedResult = await connection.execute(
@@ -536,7 +551,6 @@ app.get('/book/:id', async (req, res) => {
       isSaved = savedResult.rows.length > 0;
     }
 
-    // 3. Determine sort order for reviews
     let orderBy;
     switch(sort) {
       case 'high':
@@ -550,7 +564,6 @@ app.get('/book/:id', async (req, res) => {
         orderBy = 'r.date_reviewed DESC';
     }
 
-    // 4. Get reviews with sorting and date_reviewed
     const reviewsResult = await connection.execute(
       `SELECT r.review_id, r.book_id, r.user_id, r.rating, 
               r.likes, r.dislikes, u.name,
@@ -569,9 +582,8 @@ app.get('/book/:id', async (req, res) => {
       reviews: reviewsResult.rows,
       userId,
       currentSort: sort,
-      isSaved: isSaved // Pass the saved status to the view
+      isSaved: isSaved
     });
-
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).send("Internal Server Error");
@@ -579,7 +591,6 @@ app.get('/book/:id', async (req, res) => {
     if (connection) await connection.close();
   }
 });
-//merchandise
 
 app.get('/merchandise', async (req, res) => {
   const userId = req.session.userId;
@@ -589,7 +600,6 @@ app.get('/merchandise', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get user's total points
     const userPointsResult = await connection.execute(
       `SELECT total_points FROM users WHERE user_id = :userId`,
       { userId },
@@ -597,19 +607,20 @@ app.get('/merchandise', async (req, res) => {
     );
     const totalPoints = userPointsResult.rows[0]?.TOTAL_POINTS || 0;
 
-    // Get all merchandise items
     const merchandiseResult = await connection.execute(
       `SELECT merch_id, name, points_required, image_url FROM merchandise`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
     const merchandise = merchandiseResult.rows;
-    // console.log(merchandise)
-    res.render('merchandise', { userPoints: totalPoints, 
+
+    res.render('merchandise', { 
+      userPoints: totalPoints, 
       merchandise,
       userId: req.session.userId,
       error: req.query.error,
-      success: req.query.success});
+      success: req.query.success
+    });
   } catch (err) {
     console.error('Error fetching merchandise or user points:', err);
     res.status(500).send("Internal Server Error");
@@ -618,17 +629,13 @@ app.get('/merchandise', async (req, res) => {
   }
 });
 
-//reedem
-// Update the redeem route
 app.post('/redeem/:id', async (req, res) => {
-  console.log('Request body:', req.body);
   const userId = req.session.userId;
   const merchId = req.params.id;
   const { fullName, address } = req.body;
 
   if (!userId) return res.redirect('/login');
 
-  // Basic validation
   if (!fullName || !address) {
     return res.redirect(`/merchandise?error=MissingFields`);
   }
@@ -637,7 +644,6 @@ app.post('/redeem/:id', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Fetch item cost and name
     const merchResult = await connection.execute(
       `SELECT name, points_required FROM merchandise WHERE merch_id = :merchId`,
       { merchId: merchId },
@@ -651,7 +657,6 @@ app.post('/redeem/:id', async (req, res) => {
     const merchName = merchResult.rows[0].NAME;
     const requiredPoints = merchResult.rows[0].POINTS_REQUIRED;
 
-    // Fetch user points and email
     const userResult = await connection.execute(
       `SELECT total_points, email FROM users WHERE user_id = :userId`,
       { userId: userId },
@@ -665,7 +670,6 @@ app.post('/redeem/:id', async (req, res) => {
       return res.redirect('/merchandise?error=NotEnoughPoints');
     }
 
-    // Generate a new redemption_id - FIXED THIS PART
     const idResult = await connection.execute(
       `SELECT NVL(MAX(redemption_id), 0) + 1 AS next_id FROM redemptions`,
       [],
@@ -673,7 +677,6 @@ app.post('/redeem/:id', async (req, res) => {
     );
     const newRedemptionId = idResult.rows[0].NEXT_ID;
 
-    // Deduct points
     await connection.execute(
       `UPDATE users SET total_points = total_points - :pointsRequired WHERE user_id = :userId`,
       { 
@@ -682,7 +685,6 @@ app.post('/redeem/:id', async (req, res) => {
       }
     );
 
-    // Insert into redemptions with address info
     await connection.execute(
       `INSERT INTO redemptions (redemption_id, user_id, merch_id, recipient_name, shipping_address) 
        VALUES (:redemptionId, :userId, :merchId, :recipientName, :shippingAddress)`,
@@ -696,8 +698,6 @@ app.post('/redeem/:id', async (req, res) => {
     );
 
     await connection.commit();
-
-    console.log(`Email would be sent to ${userEmail} about ${merchName} redemption`);
     res.redirect('/merchandise?success=1');
   } catch (err) {
     console.error('Redemption error:', err);
@@ -707,34 +707,6 @@ app.post('/redeem/:id', async (req, res) => {
     if (connection) await connection.close();
   }
 });
-
-//fanart
-// Fanart Route
-// app.get('/fanart', (req, res) => {
-//   const fanarts = [
-//     {
-//       img: "https://via.placeholder.com/300x200?text=Fanart+1",
-//       title: "Beautiful Scene",
-//       description: "A fanart from the story.",
-//       link: "#"
-//     },
-//     {
-//       img: "https://via.placeholder.com/300x200?text=Fanart+2",
-//       title: "Epic Battle",
-//       description: "An action-packed fan drawing.",
-//       link: "#"
-//     },
-//     {
-//       img: "https://via.placeholder.com/300x200?text=Fanart+3",
-//       title: "Character Art",
-//       description: "A portrait of a popular character.",
-//       link: "#"
-//     }
-//   ];
-
-//   res.render('fanart', { fanarts });
-// });
-
 
 app.get('/leaderboard', async (req, res) => {
   let connection;
@@ -760,23 +732,16 @@ app.get('/leaderboard', async (req, res) => {
 
     res.render('leaderboard', { 
       leaderboard,
-      userId: req.session.userId  // Pass userId to the view if needed
+      userId: req.session.userId
     });
   } catch (err) {
     console.error('Leaderboard error:', err);
     res.status(500).render('error', { message: 'Error loading leaderboard' });
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error('Error closing connection:', err);
-      }
-    }
+    if (connection) await connection.close();
   }
 });
 
-// Profile route
 app.get('/profile', async (req, res) => {
   const userId = req.session.userId;
   if (!userId) return res.redirect('/login');
@@ -785,7 +750,6 @@ app.get('/profile', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // 1. Get user info
     const userResult = await connection.execute(
       `SELECT name, email, total_points FROM users WHERE user_id = :userId`,
       { userId },
@@ -797,7 +761,6 @@ app.get('/profile', async (req, res) => {
     }
     const user = userResult.rows[0];
 
-    // 2. Get saved books
     const savedBooksResult = await connection.execute(
       `SELECT b.book_id, b.title, b.author, b.image 
        FROM saved_books sb
@@ -809,7 +772,6 @@ app.get('/profile', async (req, res) => {
     );
     const savedBooks = savedBooksResult.rows;
 
-    // 3. Get reading activity (books reviewed)
     const activityResult = await connection.execute(
       `SELECT COUNT(DISTINCT book_id) as books_read 
        FROM reviews 
@@ -819,7 +781,6 @@ app.get('/profile', async (req, res) => {
     );
     const booksRead = activityResult.rows[0]?.BOOKS_READ || 0;
 
-    // 4. Get recent reviews (last 10)
     const reviewsResult = await connection.execute(
       `SELECT r.review_id, b.book_id, b.title, 
               DBMS_LOB.SUBSTR(r.review, 4000, 1) as review_text,
@@ -833,7 +794,7 @@ app.get('/profile', async (req, res) => {
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
     const recentReviews = reviewsResult.rows;
-    // In your /profile route, add this query after the other queries
+
     const channelsResult = await connection.execute(
       `SELECT c.channel_id, c.name, c.description, c.created_at,
               COUNT(cm.comment_id) as comment_count
@@ -847,7 +808,6 @@ app.get('/profile', async (req, res) => {
     );
     const userChannels = channelsResult.rows;
 
-    // Then add userChannels to your render parameters:
     res.render('profile', {
       user,
       savedBooks,
@@ -855,7 +815,6 @@ app.get('/profile', async (req, res) => {
       recentReviews,
       userChannels
     });
-
   } catch (err) {
     console.error('Profile error:', err);
     res.status(500).send("Internal Server Error");
@@ -864,7 +823,6 @@ app.get('/profile', async (req, res) => {
   }
 });
 
-// Community routes
 app.get('/community', async (req, res) => {
   const userId = req.session.userId;
   if (!userId) return res.redirect('/login');
@@ -873,7 +831,6 @@ app.get('/community', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get all community channels
     const channelsResult = await connection.execute(
       `SELECT c.channel_id, c.name, c.description, c.created_at, 
               u.name as creator_name, 
@@ -908,7 +865,6 @@ app.get('/community/channel/:id', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get channel info
     const channelResult = await connection.execute(
       `SELECT c.channel_id, c.name, c.description, c.created_at, 
               u.name as creator_name
@@ -923,7 +879,6 @@ app.get('/community/channel/:id', async (req, res) => {
       return res.status(404).send("Channel not found");
     }
 
-    // Get comments for this channel
     const commentsResult = await connection.execute(
       `SELECT cm.comment_id, cm.comment_text, cm.created_at,
               u.user_id, u.name as user_name
@@ -959,7 +914,6 @@ app.post('/community/channel/create', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get next channel ID
     const nextIdResult = await connection.execute(
       `SELECT channel_seq.NEXTVAL FROM dual`,
       [],
@@ -967,7 +921,6 @@ app.post('/community/channel/create', async (req, res) => {
     );
     const nextId = nextIdResult.rows[0].NEXTVAL;
 
-    // Create new channel
     await connection.execute(
       `INSERT INTO community_channels (channel_id, name, description, created_by)
        VALUES (:channelId, :name, :description, :userId)`,
@@ -1002,7 +955,6 @@ app.post('/community/channel/:id/comment', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get next comment ID
     const nextIdResult = await connection.execute(
       `SELECT comment_seq.NEXTVAL FROM dual`,
       [],
@@ -1010,7 +962,6 @@ app.post('/community/channel/:id/comment', async (req, res) => {
     );
     const nextId = nextIdResult.rows[0].NEXTVAL;
 
-    // Add new comment
     await connection.execute(
       `INSERT INTO community_comments (comment_id, channel_id, user_id, comment_text)
        VALUES (:commentId, :channelId, :userId, :commentText)`,
@@ -1033,7 +984,6 @@ app.post('/community/channel/:id/comment', async (req, res) => {
   }
 });
 
-// Book catalog route
 app.get('/catalog', async (req, res) => {
   const userId = req.session.userId;
   if (!userId) return res.redirect('/login');
@@ -1042,7 +992,6 @@ app.get('/catalog', async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Get all books
     const booksResult = await connection.execute(
       `SELECT book_id, title, author, genre, image, rating 
        FROM books 
@@ -1051,7 +1000,6 @@ app.get('/catalog', async (req, res) => {
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
-    // Get all unique genres for filter
     const genresResult = await connection.execute(
       `SELECT DISTINCT genre FROM books ORDER BY genre`,
       [],
@@ -1071,7 +1019,6 @@ app.get('/catalog', async (req, res) => {
   }
 });
 
-// Search books route (AJAX endpoint)
 app.get('/catalog/search', async (req, res) => {
   const { query, genre } = req.query;
   const userId = req.session.userId;
@@ -1113,135 +1060,148 @@ app.get('/catalog/search', async (req, res) => {
   }
 });
 
-// Add multer for file upload handling
-const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Fanart Routes
 app.get('/fanart', async (req, res) => {
   const userId = req.session.userId;
   let connection;
 
   try {
-    connection = await oracledb.getConnection(dbConfig);
+      connection = await oracledb.getConnection(dbConfig);
 
-    // Get all fanart with book and user info
-    const fanartResult = await connection.execute(
-      `SELECT f.fanart_id, f.image_name, f.character_name, f.upload_date,
-              b.book_id, b.title as book_title, b.image as book_image,
-              u.user_id, u.name as user_name
-       FROM fanart f
-       LEFT JOIN books b ON f.book_id = b.book_id
-       JOIN users u ON f.user_id = u.user_id
-       ORDER BY f.upload_date DESC`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      const fanartResult = await connection.execute(
+        `SELECT f.fanart_id, f.image_name, f.image_path, f.character_name, f.upload_date, f.downloads,
+                b.book_id, b.title as book_title, b.image as book_image,
+                u.user_id, u.name as user_name
+         FROM fanart f
+         LEFT JOIN books b ON f.book_id = b.book_id
+         JOIN users u ON f.user_id = u.user_id
+         ORDER BY f.upload_date DESC`,
+        [],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
+      const booksResult = await connection.execute(
+          `SELECT book_id, title FROM books ORDER BY title`,
+          [],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
 
-    // Get all books for the search dropdown
-    const booksResult = await connection.execute(
-      `SELECT book_id, title FROM books ORDER BY title`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
+      const charactersResult = await connection.execute(
+          `SELECT DISTINCT character_name FROM fanart WHERE character_name IS NOT NULL ORDER BY character_name`,
+          [],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
 
-    // Get all unique characters for the search dropdown
-    const charactersResult = await connection.execute(
-      `SELECT DISTINCT character_name FROM fanart WHERE character_name IS NOT NULL ORDER BY character_name`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-
-    res.render('fanart', {
-      fanarts: fanartResult.rows,
-      books: booksResult.rows,
-      characters: charactersResult.rows.map(c => c.CHARACTER_NAME),
-      userId: userId,
-      searchParams: {} // Initialize as empty object or with default values
-    });
+      res.render('fanart', {
+          fanarts: fanartResult.rows,
+          books: booksResult.rows,
+          characters: charactersResult.rows.map(c => c.CHARACTER_NAME),
+          userId: userId,
+          searchParams: {}
+      });
   } catch (err) {
-    console.error('Fanart error:', err);
-    res.status(500).send("Internal Server Error");
+      console.error('Fanart error:', err);
+      res.status(500).send("Internal Server Error");
   } finally {
-    if (connection) await connection.close();
+      if (connection) await connection.close();
   }
 });
 
-// Route to serve fanart images
-app.get('/fanart/image/:id', async (req, res) => {
-  const fanartId = req.params.id;
-  let connection;
-
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-
-    const result = await connection.execute(
-      `SELECT image_data FROM fanart WHERE fanart_id = :fanartId`,
-      { fanartId },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-
-    if (result.rows.length === 0 || !result.rows[0].IMAGE_DATA) {
-      return res.status(404).send('Image not found');
-    }
-
-    const image = result.rows[0].IMAGE_DATA;
-    res.writeHead(200, {
-      'Content-Type': 'image/jpeg',
-      'Content-Length': image.length
-    });
-    res.end(image);
-  } catch (err) {
-    console.error('Image retrieval error:', err);
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-// Handle fanart submission with file upload
 app.post('/fanart', upload.single('fanartImage'), async (req, res) => {
   const userId = req.session.userId;
   if (!userId) return res.redirect('/login');
 
   const { imageName, bookId, characterName } = req.body;
-  const imageFile = req.file;
-
-  if (!imageName || !imageFile) {
-    return res.status(400).send("Image name and file are required");
+  
+  if (!req.file) {
+      return res.status(400).send("Image file is required");
   }
 
   let connection;
   try {
-    connection = await oracledb.getConnection(dbConfig);
+      connection = await oracledb.getConnection(dbConfig);
 
-    // Get next fanart ID
-    const nextIdResult = await connection.execute(
-      `SELECT fanart_seq.NEXTVAL FROM dual`,
-      [],
+      // Get the file extension from the original filename
+      const fileExt = path.extname(req.file.originalname);
+      const fileName = `fanart_${Date.now()}${fileExt}`;
+      const filePath = path.join('images', fileName);
+      const fullPath = path.join(__dirname, 'public', filePath);
+
+      // Move the file to the destination
+      fs.renameSync(req.file.path, fullPath);
+
+      // Get next ID from sequence
+      const nextIdResult = await connection.execute(
+          `SELECT fanart_seq.NEXTVAL FROM dual`,
+          [],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      const nextId = nextIdResult.rows[0].NEXTVAL;
+
+      await connection.execute(
+          `INSERT INTO fanart (fanart_id, user_id, image_name, image_path, book_id, character_name)
+           VALUES (:fanartId, :userId, :imageName, :imagePath, :bookId, :characterName)`,
+          {
+              fanartId: nextId,
+              userId,
+              imageName: imageName.trim(),
+              imagePath: filePath.replace(/\\/g, '/'), // Ensure forward slashes for web
+              bookId: bookId || null,
+              characterName: characterName ? characterName.trim() : null
+          },
+          { autoCommit: true }
+      );
+      await connection.execute(
+        `UPDATE users SET 
+           total_points = total_points + 10 
+         WHERE user_id = :userId`,
+        { userId }
+      );
+      await connection.commit();
+      res.redirect('/fanart');
+  } catch (err) {
+      console.error('Fanart submission error:', err);
+      // Clean up the uploaded file if there was an error
+      if (req.file && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+      }
+      res.status(500).send("Error submitting fanart");
+  } finally {
+      if (connection) await connection.close();
+  }
+});
+
+app.get('/fanart/download/:id', async (req, res) => {
+  const fanartId = req.params.id;
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // First get the image path and increment download count
+    const result = await connection.execute(
+      `SELECT image_path FROM fanart WHERE fanart_id = :fanartId`,
+      { fanartId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    const nextId = nextIdResult.rows[0].NEXTVAL;
 
-    // Insert new fanart with BLOB data
+    if (result.rows.length === 0) {
+      return res.status(404).send("Fanart not found");
+    }
+
+    const imagePath = result.rows[0].IMAGE_PATH;
+    const fullPath = path.join(__dirname, 'public', imagePath);
+
+    // Increment download count
     await connection.execute(
-      `INSERT INTO fanart (fanart_id, user_id, image_name, image_data, book_id, character_name)
-       VALUES (:fanartId, :userId, :imageName, :imageData, :bookId, :characterName)`,
-      {
-        fanartId: nextId,
-        userId,
-        imageName: imageName.trim(),
-        imageData: imageFile.buffer,
-        bookId: bookId || null,
-        characterName: characterName || null
-      },
+      `UPDATE fanart SET downloads = downloads + 1 WHERE fanart_id = :fanartId`,
+      { fanartId },
       { autoCommit: true }
     );
 
-    res.redirect('/fanart');
+    // Send the file for download
+    res.download(fullPath);
   } catch (err) {
-    console.error('Fanart submission error:', err);
-    res.status(500).send("Error submitting fanart");
+    console.error('Download error:', err);
+    res.status(500).send("Error downloading image");
   } finally {
     if (connection) await connection.close();
   }
@@ -1282,14 +1242,12 @@ app.post('/fanart/search', async (req, res) => {
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
-    // Get all books for the search dropdown
     const booksResult = await connection.execute(
       `SELECT book_id, title FROM books ORDER BY title`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
-    // Get all unique characters for the search dropdown
     const charactersResult = await connection.execute(
       `SELECT DISTINCT character_name FROM fanart WHERE character_name IS NOT NULL ORDER BY character_name`,
       [],
@@ -1311,7 +1269,6 @@ app.post('/fanart/search', async (req, res) => {
   }
 });
 
-// Logout route
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -1320,7 +1277,7 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
   });
 });
-// Server
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
