@@ -112,7 +112,7 @@
           <tr>
             <th>Rank</th>
             <th>Reviewer</th>
-            <th>Total Likes</th>
+            <th>Total Points</th>
           </tr>
         </thead>
         <tbody>
@@ -129,7 +129,7 @@
                 <%= index + 1 %>
               </td>
               <td><%= user.name %></td>
-              <td><%= user.total_likes.toLocaleString() %></td>
+              <td><%= user.total_points.toLocaleString() %></td>
             </tr>
           <% }) %>
         </tbody>

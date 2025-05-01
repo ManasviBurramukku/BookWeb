@@ -714,11 +714,9 @@ app.get('/leaderboard', async (req, res) => {
     connection = await oracledb.getConnection(dbConfig);
     
     const result = await connection.execute(
-      `SELECT u.name, NVL(SUM(r.likes), 0) AS total_likes
-       FROM users u
-       LEFT JOIN reviews r ON u.user_id = r.user_id
-       GROUP BY u.name
-       ORDER BY total_likes DESC
+      `SELECT user_id, name, total_points
+       FROM users
+       ORDER BY total_points DESC
        FETCH FIRST 10 ROWS ONLY`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
@@ -727,7 +725,8 @@ app.get('/leaderboard', async (req, res) => {
     const leaderboard = result.rows.map((row, index) => ({
       rank: index + 1,
       name: row.NAME,
-      total_likes: row.TOTAL_LIKES || 0
+      total_points: row.TOTAL_POINTS || 0,
+      userId: row.USER_ID
     }));
 
     res.render('leaderboard', { 
@@ -1277,6 +1276,16 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
   });
 });
+
+app.use((req, res, next) => {
+  res.status(404).render('404');
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).render('error', { message: 'Something went wrong!' });
+});
+
 
 const PORT = 3000;
 app.listen(PORT, () => {
